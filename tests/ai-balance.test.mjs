@@ -32,9 +32,10 @@ test('skilled rally player can eventually beat Pro without artificial scores', (
 
 test('Legend remains stronger than Pro, but rally pressure makes hits fallible', () => {
   const pro = expertSession('pro', 20000);
-  const legend = expertSession('legend', 80000);
-  assert(pro.score.left > legend.score.left, 'Legend should concede points less often');
-  assert(legend.score.left >= 1, 'Even the highest difficulty must not have perfect tracking');
-  assert(legend.bestRally > pro.bestRally, 'Legend should sustain longer rallies');
-  console.log('LEGEND BALANCE:', JSON.stringify(legend));
+  const legendEarly = expertSession('legend', 20000);
+  const legendLong = expertSession('legend', 80000);
+  assert(pro.score.left > legendEarly.score.left, 'Compare CPU skill on the same simulated time horizon');
+  assert(legendLong.score.left >= 1, 'Even the highest difficulty must not have perfect tracking');
+  assert(legendLong.bestRally > pro.bestRally, 'Legend should sustain longer rallies');
+  console.log('LEGEND BALANCE:', JSON.stringify({ early: legendEarly, long: legendLong }));
 });
