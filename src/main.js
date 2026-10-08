@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 const elements = {
   canvas: $('game-canvas'),
   arena: $('arena'),
+  matchNumber: $('match-number'),
   overlay: $('game-overlay'),
   overlayKicker: $('overlay-kicker'),
   overlayTitle: $('overlay-title'),
@@ -70,6 +71,7 @@ const keysDown = new Set();
 const touches = new Map(); // pointerId -> { side, y }
 const motionOn = () => preferences.effects && !motionMedia?.matches;
 let lastOverlayPhase = null;
+let matchSequence = 0;
 let particles = [];
 let ballTrail = [];
 let shake = 0;
@@ -162,6 +164,7 @@ function showOverlay() {
 }
 
 function syncHUD() {
+  elements.matchNumber.textContent = String(game.phase === 'idle' ? matchSequence + 1 : Math.max(1, matchSequence)).padStart(3, '0');
   elements.leftScore.textContent = pad(game.score.left);
   elements.rightScore.textContent = pad(game.score.right);
   elements.rally.textContent = pad(game.rally);
@@ -176,8 +179,10 @@ function syncHUD() {
 
 function startOrResume() {
   audio.unlock();
+  const newMatch = game.phase === 'idle' || game.phase === 'gameover';
   const changed = game.start();
   if (changed) {
+    if (newMatch) matchSequence++;
     audio.play('click');
     if (game.phase === 'ready') announce('Match started. First to ' + WIN_SCORE + ', win by two.');
     else announce('Match resumed.');
@@ -189,6 +194,7 @@ function startOrResume() {
 function resetGame() {
   game.reset();
   game.start();
+  matchSequence++;
   audio.unlock();
   keysDown.clear();
   touches.clear();
@@ -602,6 +608,7 @@ requestAnimationFrame(frame);
 window.__STRIKELINE_DIAGNOSTICS__ = Object.freeze({
   snapshot: () => ({
     phase: game.phase,
+    match: matchSequence,
     mode: game.mode,
     difficulty: game.difficulty,
     score: { ...game.score },
