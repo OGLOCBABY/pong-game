@@ -138,7 +138,7 @@ test('missing the left paddle awards a point to the right side', () => {
 test('score always goes to the opposite player; game ends at 7 by 2', () => {
   const game = new PongGame({ mode: 'local' });
   game.score.left = 6;
-  game.score.right = 5;
+  game.score.right = 6;
   const beforeWin = scoreLeft(game);
   assert(beforeWin.some((item) => item.type === 'score'));
   assert.equal(game.score.left, 7);
