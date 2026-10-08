@@ -62,19 +62,43 @@ export class RuinsGame {
   float(x,y,text,color='#ffe19a'){this.floating.push({x,y,text,color,life:1.15});}
   addScore(score,x,y){this.score+=score;this.float(x,y,`+${score.toLocaleString('en-US')}`);}
   spawn(type,x,y=towerSurfaceAt(x)){const hp={rifle:2,mummy:3,bat:2,turret:5,spawner:9,barrel:4}[type]||2;const h={rifle:43,mummy:47,bat:20,turret:34,spawner:53,barrel:42}[type]||40;this.enemies.push({id:this.enemies.length+this.kills*1000,type,x,y:y-h,w:type==='spawner'?50:type==='barrel'?50:29,h,vx:0,vy:0,hp,maxHp:hp,hit:0,t:0,shoot:.5+this.random()*1.3,spawn:.9+this.random(),dir:-1,dead:false,active:true,attack:0,grounded:true});}
-  firePlayer(){const p=this.player;if(p.fireCooldown>0||p.curse>0&&p.fireCooldown>0)return;
-    const isSlug=p.weapon==='slug'&&p.ammo>0, isHeavy=(p.weapon==='heavy'||isSlug)&&p.ammo>0, isSpread=p.weapon==='spread'&&p.ammo>0;
-    const rate=p.curse>0?.29:isSlug?.095:isHeavy?.075:isSpread?.27:.16;p.fireCooldown=rate;
+  firePlayer(){
+    const p=this.player,I=this.input,mounted=this.vehicle.mounted;
+    if(p.fireCooldown>0)return;
+    const heavy=p.weapon==='heavy'&&p.ammo>0;
+    const spread=p.weapon==='spread'&&p.ammo>0;
+    p.fireCooldown=p.curse>0?.32:mounted?.105:heavy?.075:spread?.27:.16;
     let dx=p.dir,dy=0;
-    if(this.input.up){dx=0;dy=-1;}else if(this.input.down&&!p.grounded){dx=p.dir*.75;dy=.66;}
-    const origin={x:p.x+p.w/2+dx*18,y:p.y+(p.curse>0?30:21)+(dy<0?-16:0)};
-    const angles=isSpread?[-.22,0,.22]:isSlug?[-.12,.12]:[0];
-    for(const a of angles){const vx=dx*Math.cos(a)-dy*Math.sin(a),vy=dx*Math.sin(a)+dy*Math.cos(a);this.bullets.push({x:origin.x,y:origin.y,px:origin.x,py:origin.y,vx:vx*(isHeavy?1300:970),vy:vy*(isHeavy?1300:970),r:isHeavy?4:3,ttl:.95,owner:'player',damage:isHeavy?1.1:1,color:isHeavy?'#ffe8aa':'#fff4bc'});}
-    if(p.ammo!==Infinity) {p.ammo--;if(p.ammo<=0){p.weapon='pistol';p.ammo=Infinity;this.emit('empty');}}
-    p.shots++;this.shots++;this.emit('shoot',origin.x,origin.y,{heavy:isHeavy,spread:isSpread,slug:isSlug});
-    this.burst(origin.x+dx*4,origin.y+dy*4,'#fff0ab',3,62);
+    if(I.up){dx=0;dy=-1;}
+    else if(I.down){if(!p.grounded||mounted){dx=0;dy=1;}else p.crouch=true;}
+    const originX=p.x+p.w/2+dx*20,originY=p.y+(p.crouch?34:20)+(dy>0?15:dy<0?-15:0);
+    const push=(vx,vy,yOffset=0,damage=1,kind='player')=>{
+      const length=Math.max(.001,Math.hypot(vx,vy)),speed=mounted?1120:heavy?1300:970;
+      const x=originX,y=originY+yOffset;
+      this.bullets.push({x,y,px:x,py:y,vx:vx/length*speed,vy:vy/length*speed,r:heavy?4:3,ttl:1,owner:'player',damage,kind,color:mounted?'#fff0a2':heavy?'#ffe8aa':'#fff4bc'});
+    };
+    if(mounted){
+      if(dy>0){push(0,1,5,1.6,'vulcan');if(this.vehicle.gunsLeft>1)push(.08,1,-4,1.6,'vulcan');}
+      else {push(dx||p.dir,dy,-5,1.25,'vulcan');if(this.vehicle.gunsLeft>1)push(dx||p.dir,dy,9,1.25,'vulcan');}
+    }else if(spread){for(const a of [-.23,0,.23])push(dx*Math.cos(a)-dy*Math.sin(a),dx*Math.sin(a)+dy*Math.cos(a));}
+    else push(dx,dy,0,heavy?1.2:1);
+    if(p.ammo!==Infinity){p.ammo--;if(p.ammo<=0){p.weapon='pistol';p.ammo=Infinity;this.emit('empty');}}
+    p.shots++;this.shots++;this.emit('shoot',originX,originY,{heavy,spread,slug:mounted});
+    this.burst(originX,originY,'#fff0ab',3,62);
   }
-  toss(){const p=this.player;if(p.grenades<=0||p.throwCooldown>0||p.curse>0)return; p.grenades--;p.throwCooldown=.43;this.grenades.push({x:p.x+p.w/2,y:p.y+8,vx:p.dir*335+p.vx*.3,vy:-490,t:0,fuse:1.25});this.emit('throw');}
+  toss(){
+    const p=this.player;if(p.throwCooldown>0||p.curse>0)return;
+    if(this.vehicle.mounted){
+      p.throwCooldown=.38;
+      const x=p.x+p.w/2,y=p.y+p.h+4;
+      this.bullets.push({x,y,px:x,py:y,vx:0,vy:690,r:8,ttl:1,owner:'player',damage:4.5,kind:'cannon',color:'#ffac54'});
+      this.emit('cannon',x,y);return;
+    }
+    if(p.grenades<=0)return;
+    p.grenades--;p.throwCooldown=.43;
+    this.grenades.push({x:p.x+p.w/2,y:p.y+8,vx:p.dir*335+p.vx*.3,vy:-490,t:0,fuse:1.25});
+    this.emit('throw');
+  }
   damagePlayer(amount=1,kind='bullet') {
     const p=this.player;
     if(this.phase!=='playing'||p.invuln>0)return false;
@@ -116,25 +140,39 @@ export class RuinsGame {
     for(const e of this.enemies){if(e.dead)continue;const dx=e.x+e.w/2-g.x,dy=e.y+e.h/2-g.y;if(dx*dx+dy*dy<rad*rad)this.damageEnemy(e,5,g.x,g.y);}
     const b=this.boss;if(b.active&&!b.dead&&Math.hypot(b.x-35-g.x,b.y-g.y)<rad+75)this.damageBoss(6,g.x,g.y);
   }
-  updatePlayer(dt){const p=this.player,I=this.input;const slow=p.curse>0?.56:1;const speed=238*slow;
-    const d=(I.right?1:0)-(I.left?1:0);p.vx=d*speed;if(d)p.dir=d;
-    if(I.jump&&p.grounded){p.vy=p.curse>0?-350:-490;p.grounded=false;this.emit('jump');}
+  updatePlayer(dt){
+    const p=this.player,I=this.input;
+    const slow=p.curse>0?.56:1,speed=(this.vehicle.mounted?228:238)*slow;
+    const d=(I.right?1:0)-(I.left?1:0),prevX=p.x;
+    p.crouch=I.down&&!I.up&&p.grounded&&!this.vehicle.mounted;
+    p.vx=d*speed*(p.crouch?.52:1);if(d)p.dir=d;
+    if(I.jump&&p.grounded){p.vy=this.vehicle.mounted?-610:p.curse>0?-345:-490;p.grounded=false;this.emit('jump');}
     if(I.fire)this.firePlayer();if(I.grenade)this.toss();
     const prevBottom=p.y+p.h;
-    p.vy=clamp(p.vy+G*dt,-750,780);p.x=clamp(p.x+p.vx*dt,25,WORLD_END-p.w-10);
-    if(this.bossGate)p.x=clamp(p.x,BOSS_START+10,5850);
+    p.vy=clamp(p.vy+G*dt,-750,780);
+    p.x=clamp(p.x+p.vx*dt,25,WORLD_END-p.w-10);
     p.y+=p.vy*dt;p.grounded=false;
     if(p.vy>=0){let landing=FLOOR;
-      for(const platform of this.platforms){if(prevBottom<=platform.y+8&&p.y+p.h>=platform.y&&p.x+p.w>platform.x+6&&p.x<platform.x+platform.w-6&&platform.y<landing)landing=platform.y;}
+      for(const platform of this.platforms){
+        if(prevBottom<=platform.y+7&&p.y+p.h>=platform.y&&p.x+p.w>platform.x+6&&p.x<platform.x+platform.w-6&&platform.y<landing)
+          landing=platform.y;
+      }
       if(p.y+p.h>=landing){p.y=landing-p.h;p.vy=0;p.grounded=true;}
     }
     if(p.y+p.h>FLOOR){p.y=FLOOR-p.h;p.vy=0;p.grounded=true;}
-    p.invuln=Math.max(0,p.invuln-dt);p.curse=Math.max(0,p.curse-dt);p.fireCooldown=Math.max(0,p.fireCooldown-dt);p.throwCooldown=Math.max(0,p.throwCooldown-dt);p.anim+=dt*(d?12:4);
-    if(p.x>=1640&&p.checkpoint<1650){p.checkpoint=1680;this.emit('checkpoint',p.x,p.y);}
-    if(p.x>=3500&&p.checkpoint<3500){p.checkpoint=3520;this.emit('checkpoint',p.x,p.y);}
-    if(p.x>=5350&&p.checkpoint<5350){p.checkpoint=5390;this.emit('checkpoint',p.x,p.y);}
-    const nextAct=actAt(p.x);if(nextAct!==this.act){this.act=nextAct;this.emit('act',p.x,p.y,{act:nextAct,title:PHASES[nextAct]});}
-    if(!this.boss.active&&p.x>=BOSS_START){this.boss.active=true;this.bossGate=true;this.emit('boss',p.x,p.y);}
+    p.x=routeGate(prevX,p.x,p.y+p.h,this.gateOpen);
+    if(this.bossGate)p.x=clamp(p.x,BOSS_START+6,6320);
+    p.invuln=Math.max(0,p.invuln-dt);p.fireCooldown=Math.max(0,p.fireCooldown-dt);
+    p.throwCooldown=Math.max(0,p.throwCooldown-dt);p.anim+=dt*(d?12:4);
+    if(p.x>=1640&&this.gateOpen&&p.checkpoint<1650){p.checkpoint=1680;p.checkpointY=FLOOR-p.h;this.emit('checkpoint');}
+    if(p.x>=3500&&p.checkpoint<3500){p.checkpoint=3530;p.checkpointY=FLOOR-p.h;this.emit('checkpoint');}
+    if(p.x>=4520&&p.y< -60&&p.checkpoint<4450){p.checkpoint=4470;p.checkpointY=-60-p.h;this.emit('checkpoint');}
+    if(p.x>=5450&&p.y<-490&&p.checkpoint<5450){p.checkpoint=5450;p.checkpointY=-570-p.h;this.emit('checkpoint');}
+    const nextAct=actAt(p.x),nextScene=sceneAt(p.x).id;
+    if(nextAct!==this.act){this.act=nextAct;this.emit('act',p.x,p.y,{act:nextAct,title:PHASES[nextAct]});}
+    if(nextScene!==this.sceneId){this.sceneId=nextScene;this.emit('scene',p.x,p.y,{sceneId:nextScene});}
+    this.maxHeight=Math.min(this.maxHeight,p.y);
+    if(!this.boss.active&&p.x>=BOSS_START&&p.y+p.h<=-555){this.boss.active=true;this.bossGate=true;this.emit('boss',p.x,p.y);}
   }
   updateEnemy(e,dt){const p=this.player;e.t+=dt;e.hit=Math.max(0,e.hit-dt);e.shoot-=dt;
     const dx=p.x-e.x;const near=Math.abs(dx)<660;e.dir=dx>=0?1:-1;
@@ -162,7 +200,7 @@ export class RuinsGame {
     if(this.player.x>b.x-145&&Math.abs(this.player.y+this.player.h/2-b.y)<95)this.damagePlayer(1);
   }
   updateBullets(dt){const p=this.player;for(const b of this.bullets){b.px=b.x;b.py=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;b.ttl-=dt;
-    if(b.ttl<=0||b.y<-40||b.y>FLOOR+30){b.ttl=0;continue;}
+    if(b.ttl<=0||b.y<this.camera.y-180||b.y>this.camera.y+HEIGHT+180){b.ttl=0;continue;}
     if(b.owner==='player'){
       for(const secret of this.secrets){if(!secret.triggered&&sweptHit(b,secret)){secret.triggered=true;b.ttl=0;this.burst(secret.x,secret.y,'#ffe59b',45,190);this.emit('secret',secret.x,secret.y,{secret:secret.kind});if(secret.kind==='sphinx'){this.addScore(10000,secret.x,secret.y);}else{for(let q=0;q<12;q++)this.pickups.push({id:2000+this.pickups.length,x:4190+(q%6)*24,y:260-Math.floor(q/6)*30,type:'coin',taken:false,phase:this.random()*4});}break;}}
       if(b.ttl<=0)continue;
@@ -170,7 +208,7 @@ export class RuinsGame {
       if(b.ttl>0&&this.boss.active&&!this.boss.dead){const box={x:this.boss.x-120,y:this.boss.y-85,w:160,h:180};if(sweptHit(b,box)) {this.damageBoss(b.damage,b.x,b.y);b.ttl=0;}}
     }else if(p.invuln<=0&&sweptHit(b,p,1)){this.damagePlayer(1,b.kind==='curse'?'curse':'bullet');b.ttl=0;}
   }
-    this.bullets=this.bullets.filter(b=>b.ttl>0&&b.x>=this.camera-80&&b.x<this.camera+WIDTH+250);
+    this.bullets=this.bullets.filter(b=>b.ttl>0&&b.x>=this.camera.x-80&&b.x<this.camera.x+WIDTH+250);
   }
   updateGrenades(dt){for(const g of this.grenades){g.t+=dt;g.vy+=G*dt;g.x+=g.vx*dt;g.y+=g.vy*dt;if(g.y>=FLOOR-9){g.y=FLOOR-9;g.vy=-Math.abs(g.vy)*.45;g.vx*=.78;}if(g.t>=g.fuse){g.dead=true;this.explode(g);}}this.grenades=this.grenades.filter(g=>!g.dead);}
   step(dt=FIXED_DT){this.events=[];if(this.phase!=='playing')return this.events;dt=clamp(dt,0,1/30);this.time+=dt;
@@ -184,8 +222,10 @@ export class RuinsGame {
     for(const q of this.floating){q.y-=28*dt;q.life-=dt;}this.floating=this.floating.filter(q=>q.life>0);
     this.enemies=this.enemies.filter(e=>!e.dead||e.hit>0);
     this.comboTimer-=dt;if(this.comboTimer<=0)this.combo=0;
-    this.camera=clamp(this.camera+(clamp(this.player.x-340,0,WORLD_END-WIDTH)-this.camera)*Math.min(1,dt*7),0,WORLD_END-WIDTH);
+    const cameraX=clamp(this.player.x-340,0,WORLD_END-WIDTH),cameraY=Math.min(0,this.player.y-210);
+    this.camera.x+=((cameraX)-this.camera.x)*Math.min(1,dt*7);
+    this.camera.y+=(Math.max(-1050,cameraY)-this.camera.y)*Math.min(1,dt*6);
     return this.events;
   }
-  snapshot(){return {phase:this.phase,time:this.time,score:this.score,act:this.act,player:{...this.player},boss:{...this.boss},enemies:this.enemies.length,bullets:this.bullets.length,kills:this.kills,rescues:this.rescues};}
+  snapshot(){return {phase:this.phase,mode:this.mode,time:this.time,score:this.score,act:this.act,sceneId:this.sceneId,gateOpen:this.gateOpen,camera:{...this.camera},maxHeight:this.maxHeight,player:{...this.player},vehicle:{...this.vehicle},boss:{...this.boss},hazards:this.hazards.length,enemies:this.enemies.length,bullets:this.bullets.length,kills:this.kills,rescues:this.rescues};}
 }
