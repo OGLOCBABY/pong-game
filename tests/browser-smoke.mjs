@@ -1,0 +1,174 @@
+/**
+ * Real Chromium smoke and scripted play session.
+ * Usage: npm install && npx playwright install chromium && npm run smoke
+ * All screenshots go under this repository's test-results/ directory.
+ */
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFile, mkdir } from 'node:fs/promises';
+import { dirname, extname, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+
+const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
+const output = resolve(root, 'test-results');
+await mkdir(output, { recursive: true });
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json; charset=utf-8',
+};
+
+const server = createServer(async (request, response) => {
+  try {
+    const url = new URL(request.url, 'http://localhost');
+    const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
+    const path = resolve(root, '.' + pathname);
+    if (!path.startsWith(root + sep)) {
+      response.writeHead(403).end('Forbidden');
+      return;
+    }
+    const bytes = await readFile(path);
+    response.writeHead(200, {
+      'Content-Type': MIME[extname(path)] || 'application/octet-stream',
+      'Cache-Control': 'no-store',
+    }).end(bytes);
+  } catch {
+    response.writeHead(404).end('Not found');
+  }
+});
+
+await new Promise((accept) => server.listen(0, '127.0.0.1', accept));
+const url = 'http://127.0.0.1:' + server.address().port + '/';
+let browser;
+const errors = [];
+const snapshot = (page) => page.evaluate(() => window.__STRIKELINE_DIAGNOSTICS__.snapshot());
+const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+const waitPlaying = (page) => page.waitForFunction(
+  () => window.__STRIKELINE_DIAGNOSTICS__?.snapshot().phase === 'playing',
+  null, { timeout: 6000 },
+);
+
+try {
+  browser = await chromium.launch({ headless: true });
+  const desktop = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+  desktop.on('pageerror', (error) => errors.push('desktop: ' + error.message));
+  desktop.on('console', (message) => { if (message.type() === 'error') errors.push('desktop console: ' + message.text()); });
+
+  const response = await desktop.goto(url, { waitUntil: 'networkidle' });
+  assert.equal(response.status(), 200);
+  assert.match(await desktop.title(), /STRIKELINE/);
+  assert.equal(await desktop.locator('#game-canvas').count(), 1);
+  assert.equal((await snapshot(desktop)).phase, 'idle');
+  await desktop.screenshot({ path: resolve(output, '01-desktop-home.png'), fullPage: true });
+  console.log('PASS desktop page loads and initial screenshot captured');
+
+  await desktop.locator('#primary-action').click();
+  await waitPlaying(desktop);
+  const beforeUp = (await snapshot(desktop)).paddles.left.y;
+  await desktop.keyboard.down('w');
+  await delay(260);
+  await desktop.keyboard.up('w');
+  const afterUp = (await snapshot(desktop)).paddles.left.y;
+  assert(afterUp < beforeUp - 25, 'W should move player paddle upward');
+  console.log('PASS keyboard input moves left paddle:', beforeUp.toFixed(1), '->', afterUp.toFixed(1));
+
+  await desktop.locator('#pause-button').click();
+  const paused = await snapshot(desktop);
+  assert.equal(paused.phase, 'paused');
+  await delay(220);
+  assert.deepEqual((await snapshot(desktop)).ball, paused.ball, 'pause must freeze ball coordinates');
+  await desktop.locator('#primary-action').click();
+  assert.equal((await snapshot(desktop)).phase, 'playing');
+  console.log('PASS pause preserves ball, and resume works');
+
+  await desktop.locator('[data-mode="local"]').click();
+  assert.equal((await snapshot(desktop)).mode, 'local');
+  assert.equal((await snapshot(desktop)).phase, 'idle');
+  assert.equal(await desktop.locator('[data-difficulty="legend"]').isDisabled(), true);
+  await desktop.locator('#primary-action').click();
+  await waitPlaying(desktop);
+  const beforeRight = (await snapshot(desktop)).paddles.right.y;
+  await desktop.keyboard.down('ArrowDown');
+  await delay(260);
+  await desktop.keyboard.up('ArrowDown');
+  const afterRight = (await snapshot(desktop)).paddles.right.y;
+  assert(afterRight > beforeRight + 25, 'ArrowDown should move right paddle in local mode');
+  await desktop.screenshot({ path: resolve(output, '02-desktop-duel.png'), fullPage: true });
+  console.log('PASS local two-player arrow controls and screenshot');
+
+  await desktop.locator('[data-mode="cpu"]').click();
+  await desktop.locator('[data-difficulty="rookie"]').click();
+  assert.equal((await snapshot(desktop)).difficulty, 'rookie');
+  await desktop.locator('#sound-button').click();
+  assert.equal((await snapshot(desktop)).sound, false);
+  await desktop.locator('#motion-button').click();
+  assert.equal((await snapshot(desktop)).effects, false);
+  await desktop.locator('#motion-button').click();
+  assert.equal((await snapshot(desktop)).effects, true);
+  console.log('PASS mode, difficulty, sound and effects settings');
+
+  // An automated paddle controller *plays* the game in a real browser.
+  await desktop.locator('#primary-action').click();
+  await waitPlaying(desktop);
+  const board = desktop.locator('#game-canvas');
+  await board.scrollIntoViewIfNeeded();
+  const box = await board.boundingBox();
+  let peakRally = 0;
+  let tracked = 0;
+  for (let i = 0; i < 190; i++) {
+    const state = await snapshot(desktop);
+    if (state.phase === 'gameover') break;
+    const ball = state.ball;
+    const y = Math.min(0.96, Math.max(0.04, ball.y / 540));
+    await desktop.mouse.move(box.x + box.width * 0.15, box.y + box.height * y);
+    await delay(40);
+    peakRally = Math.max(peakRally, state.rally, state.bestRally);
+    tracked++;
+  }
+  const postPlay = await snapshot(desktop);
+  assert(tracked >= 60, 'scripted session should interact for several seconds');
+  assert(postPlay.elapsed > 2, 'game physics must make progress');
+  await desktop.screenshot({ path: resolve(output, '03-desktop-played.png'), fullPage: true });
+  console.log('PASS scripted Chromium game session', JSON.stringify({ tracked, peakRally, elapsed: Math.round(postPlay.elapsed), score: postPlay.score }));
+
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+  });
+  const mobile = await mobileContext.newPage();
+  mobile.on('pageerror', (error) => errors.push('mobile: ' + error.message));
+  mobile.on('console', (message) => { if (message.type() === 'error') errors.push('mobile console: ' + message.text()); });
+  await mobile.goto(url, { waitUntil: 'networkidle' });
+  const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(overflow < 3, 'mobile page must not have horizontal scrolling: ' + overflow);
+  await mobile.screenshot({ path: resolve(output, '04-mobile-home.png'), fullPage: true });
+  await mobile.locator('#primary-action').click();
+  await waitPlaying(mobile);
+  await mobile.locator('#game-canvas').scrollIntoViewIfNeeded();
+  const mobileBox = await mobile.locator('#game-canvas').boundingBox();
+  const touchX = mobileBox.x + mobileBox.width * 0.15;
+  const touchY = mobileBox.y + mobileBox.height * .90;
+  const beforeTouch = (await snapshot(mobile)).paddles.left.y;
+  const cdp = await mobileContext.newCDPSession(mobile);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: touchX, y: touchY, id: 1 }] });
+  await delay(350);
+  const afterTouch = (await snapshot(mobile)).paddles.left.y;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  assert(afterTouch > beforeTouch + 25, 'touch must move paddle down');
+  await mobile.screenshot({ path: resolve(output, '05-mobile-play.png'), fullPage: true });
+  console.log('PASS mobile layout (no sideways scroll), real touch input and screenshots');
+
+  // Focus and labels are part of the interaction contract.
+  assert(await desktop.locator('button[aria-pressed]').count() >= 5);
+  assert(await desktop.locator('#announcer[aria-live="polite"]').count() === 1);
+  assert.equal(errors.length, 0, errors.join('\n'));
+  console.log('PASS accessible toggle semantics and zero page/console errors');
+  console.log('SMOKE RESULT: ALL CHECKS PASSED');
+} finally {
+  if (browser) await browser.close();
+  await new Promise((done) => server.close(done));
+}
