@@ -1,0 +1,18 @@
+{
+  "name": "strikeline-pong",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A dependency-free production Pong arcade with a deterministic physics engine.",
+  "scripts": {
+    "test": "node --test tests/engine.test.mjs",
+    "smoke": "node tests/browser-smoke.mjs",
+    "check": "npm run test && npm run smoke"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
