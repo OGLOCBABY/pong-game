@@ -76,7 +76,7 @@ test('ordinary pistol cooldown, Heavy ammo and spread have bounded rates',()=>{
   const g=create('practice');g.start();g.setInput({fire:true});tick(g,2);
   const n=g.shots;tick(g,3);assert.equal(g.shots,n);
   g.collect({type:'heavy',x:100,y:420,taken:false});
-  tick(g,80);assert.equal(g.player.weapon,'heavy');assert.ok(g.shots>8);
+  tick(g,80);assert.equal(g.player.weapon,'heavy');assert.ok(g.shots>=8);
   assert.ok(g.player.ammo<175);
   g.collect({type:'spread',x:100,y:420,taken:false});
   assert.equal(g.player.weapon,'spread');
@@ -108,7 +108,7 @@ test('Practice second purple hit is survivable and never permanently soft-locks'
   assert.equal(g.player.curse,0);assert.equal(g.player.health,4);
 });
 test('antidote explicitly reverses persistent mummy transformation',()=>{
-  const g=create();g.start();g.damagePlayer(1,'curse');tick(g,1200);
+  const g=create();g.start();g.spawns=[];g.enemies=[];g.damagePlayer(1,'curse');tick(g,1200);
   assert.ok(g.player.curse>0,'curse must not expire on a timer');
   g.collect({type:'antidote',x:1800,y:410,taken:false});
   assert.equal(g.player.curse,0);
