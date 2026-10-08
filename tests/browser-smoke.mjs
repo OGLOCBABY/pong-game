@@ -162,6 +162,37 @@ try {
   await waitPlaying(desktop);
   console.log('PASS instant keyboard restart and score reset');
 
+  // Real complete match in Chromium. Park opposite paddles so rallies terminate
+  // naturally, then verify the final-score overlay and the rematch contract.
+  await desktop.locator('[data-mode="local"]').click();
+  await desktop.locator('#primary-action').click();
+  await waitPlaying(desktop);
+  await desktop.keyboard.down('w');
+  await desktop.keyboard.down('ArrowDown');
+  await desktop.waitForFunction(
+    () => window.__STRIKELINE_DIAGNOSTICS__?.snapshot().phase === 'gameover',
+    null,
+    { timeout: 100000, polling: 500 },
+  );
+  await desktop.keyboard.up('w');
+  await desktop.keyboard.up('ArrowDown');
+  const finished = await snapshot(desktop);
+  assert.equal(finished.phase, 'gameover');
+  assert(
+    Math.max(finished.score.left, finished.score.right) >= 7 &&
+    Math.max(finished.score.left, finished.score.right) <= 11,
+    'a complete match must finish on a valid score',
+  );
+  assert.equal(await desktop.locator('#primary-action-label').innerText(), 'PLAY AGAIN');
+  await desktop.waitForTimeout(350); // Let the end-of-match overlay finish its entry animation.
+  await desktop.screenshot({ path: resolve(output, '03b-desktop-final-score.png'), fullPage: true });
+  await desktop.locator('#primary-action').click();
+  const rematch = await snapshot(desktop);
+  assert.equal(rematch.phase, 'ready');
+  assert.deepEqual(rematch.score, { left: 0, right: 0 });
+  console.log('PASS complete in-browser match and rematch', JSON.stringify({ finalScore: finished.score, winner: finished.score.left > finished.score.right ? 'left' : 'right' }));
+
+
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2, isMobile: true, hasTouch: true,
@@ -237,6 +268,7 @@ try {
       await waitPlaying(other);
       await other.locator('#pause-button').click();
       assert.equal((await snapshot(other)).phase, 'paused', engineName);
+      await other.waitForTimeout(350); // Avoid photographing an overlay at opacity 0.
       await other.screenshot({ path: resolve(output, '07-' + engineName.toLowerCase() + '.png'), fullPage: true });
       console.log('PASS ' + engineName + ' game boot, playing, pause and screenshot');
     } finally {
