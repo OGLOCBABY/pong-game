@@ -5,7 +5,6 @@ on:
     workflows: ["STRIKELINE quality gate"]
     types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,8 +15,9 @@ jobs:
   deploy:
     name: Publish only after a successful QA run
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment:
@@ -44,14 +44,19 @@ jobs:
         if: steps.pages.outputs.enabled == 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
       - name: Assemble dependency-free static site
         if: steps.pages.outputs.enabled == 'true'
         run: |
-          mkdir -p site/src
+          mkdir -p site/src site/metal-slug-2
           cp index.html styles.css favicon.svg site/
           cp src/*.js site/src/
+          cp metal-slug-2/index.html metal-slug-2/style.css site/metal-slug-2/
+          cp metal-slug-2/main.js metal-slug-2/engine.js metal-slug-2/level.js site/metal-slug-2/
+          cp metal-slug-2/art.js metal-slug-2/audio.js site/metal-slug-2/
+          test -s site/metal-slug-2/index.html
+          test -s site/metal-slug-2/engine.js
           touch site/.nojekyll
       - name: Prepare GitHub Pages
         if: steps.pages.outputs.enabled == 'true'
