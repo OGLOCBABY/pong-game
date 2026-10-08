@@ -99,12 +99,27 @@ try{
       await page.screenshot({path:resolve(out,'scene-'+last.sceneId+'.png')});
       console.log('SCENE '+last.sceneId+' x='+Math.round(last.player.x)+' y='+Math.round(last.player.y)+' cameraY='+Math.round(last.camera.y));
     }
+    // Capture the real emerging, damageable boss; the scene-entry frame shows only the warning overlay.
+    if(last.boss.active && last.boss.entry>.96 && !captured.has('boss-engaged')){
+      captured.add('boss-engaged');
+      await page.screenshot({path:resolve(out,'boss-engaged.png')});
+      console.log('BOSS VISIBLE '+JSON.stringify({entry:last.boss.entry,hp:last.boss.hp,mode:last.boss.mode,cameraY:last.camera.y}));
+    }
+    if(last.boss.active && last.boss.entry>=1 && last.boss.telegraph>.1){
+      const cue='boss-telegraph-'+last.boss.mode;
+      if(!captured.has(cue)){
+        captured.add(cue);
+        await page.screenshot({path:resolve(out,cue+'.png')});
+        console.log('BOSS TELEGRAPH '+last.boss.mode);
+      }
+    }
     if(loops%50===0)console.log('PLAY '+JSON.stringify({elapsed:last.time,scene:last.sceneId,x:Math.round(last.player.x),y:Math.round(last.player.y),lives:last.player.lives,bosshp:last.boss.hp,phase:last.phase}));
   }
   for(const key of [...held])await hold(page,key,false);
   if(last.phase!=='won')await page.screenshot({path:resolve(out,'FAILED-bot.png')});
   assert.equal(last.phase,'won','full keyboard playthrough failure: '+JSON.stringify(last));
   assert.equal(last.boss.hp,0);assert.ok(last.vehicle.serial>=1);
+  assert(captured.has('boss-engaged'),'a screenshot must show the actual visible boss, not just the entrance warning');
   assert.ok(last.camera.y<-400&&last.maxHeight<-600,'actual vertical scrolling required');
   for(const id of ['desert','descent','tomb','ascent','slugnoid','boss'])assert(visited.has(id),'missing scene '+id);
   await page.screenshot({path:resolve(out,'99-victory.png'),fullPage:true});
