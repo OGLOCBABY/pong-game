@@ -19,7 +19,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -70,3 +70,27 @@ jobs:
         if: steps.pages.outputs.enabled == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Assert release requires actual Pages deployment
+        if: steps.pages.outputs.enabled != 'true'
+        run: |
+          echo "GitHub Pages source is disabled: cannot claim a successful release."
+          exit 1
+      - name: Install browser verification tooling
+        if: steps.pages.outputs.enabled == 'true'
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify public HTTPS loads both games and genuine player controls
+        if: steps.pages.outputs.enabled == 'true'
+        env:
+          LIVE_BASE: ${{ steps.deployment.outputs.page_url }}
+        run: node metal-slug-2/tests/live-smoke.mjs
+      - name: Save deployed site smoke screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-pages-browser-verification
+          path: metal-slug-2/test-results/public-live-*.png
+          retention-days: 14
+          if-no-files-found: ignore
