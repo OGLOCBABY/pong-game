@@ -114,9 +114,11 @@ function syncPreferences() {
   elements.leftTeam.textContent = game.mode === 'local' ? 'PLAYER 1' : 'YOU';
   elements.rightTeam.textContent = game.mode === 'local' ? 'PLAYER 2' : 'CPU';
   elements.soundButton.setAttribute('aria-pressed', String(preferences.sound));
-  elements.motionButton.setAttribute('aria-pressed', String(preferences.effects));
+  elements.motionButton.setAttribute('aria-pressed', String(motionOn()));
+  elements.motionButton.disabled = Boolean(motionMedia?.matches);
+  elements.motionButton.title = motionMedia?.matches ? 'Effects disabled by system reduced-motion preference' : 'Toggle motion effects';
   elements.soundToggle.classList.toggle('on', preferences.sound);
-  elements.motionToggle.classList.toggle('on', preferences.effects);
+  elements.motionToggle.classList.toggle('on', motionOn());
 }
 
 function showOverlay() {
@@ -260,6 +262,11 @@ document.querySelectorAll('[data-difficulty]').forEach((button) => button.addEve
     announce('Computer difficulty: ' + DIFFICULTIES[game.difficulty].label);
   }
 }));
+
+motionMedia?.addEventListener?.('change', () => {
+  if (!motionOn()) { particles = []; ballTrail = []; shake = 0; }
+  syncPreferences();
+});
 
 const activeKey = (k) => keysDown.has(k);
 function applyInputs() {
