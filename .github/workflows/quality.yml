@@ -26,9 +26,9 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Test deterministic physics and simulated play
         run: npm test
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Play the game in desktop and mobile Chromium
+      - name: Install Chromium, Firefox and WebKit
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Play the game in desktop and mobile browsers
         run: npm run smoke
       - name: Preserve visual self-review evidence
         if: always()
