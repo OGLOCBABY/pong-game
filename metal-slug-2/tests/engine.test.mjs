@@ -161,20 +161,24 @@ test('boss starts from below, telegraphs multiple attacks and can genuinely be d
   g.damageBoss(g.boss.hp,g.boss.x,g.boss.y);
   assert.equal(g.phase,'won');assert.equal(g.boss.dead,true);
 });
-test('boss remains alive through each of four distinct warning modes in a real simulation',()=>{
-  const g=create('practice');g.start();g.spawns=[];
-  g.player.x=BOSS_START+6;g.player.y=-618;g.player.grounded=true;g.player.invuln=1000;
-  tick(g,2);
-  assert.equal(g.boss.active,true);
+test('boss advertises electric attacks when mounted, missiles on foot, and safe laser/lunge telegraphs',()=>{
   const seen=new Set();
-  for(let i=0;i<120*22&&seen.size<4;i++){
-    const events=g.step(FIXED_DT);
-    for(const event of events)if(event.type==='warning')seen.add(event.mode);
+  for(const mounted of [false,true]){
+    const g=create('practice');g.start();g.spawns=[];
+    g.player.x=BOSS_START+6;g.player.y=-618;g.player.grounded=true;g.player.invuln=1000;
+    if(mounted)g.collect({type:'slug',x:g.player.x,y:g.player.y,taken:false});
+    tick(g,2);
+    assert.equal(g.boss.active,true);
+    const thisMode=new Set();
+    for(let i=0;i<120*22&&thisMode.size<3;i++){
+      for(const event of g.step(FIXED_DT))
+        if(event.type==='warning'){seen.add(event.mode);thisMode.add(event.mode);}
+    }
+    assert.equal(g.phase,'playing','time and enemy patterns cannot auto-complete mission');
+    assert.equal(g.boss.hp,g.boss.maxHp);
+    assert(thisMode.has(mounted?'electric':'missile'),'mode-specific projectile was not telegraphed');
   }
-  for(const mode of ['electric','laser','lunge','missile'])
-    assert(seen.has(mode),'boss never telegraphed '+mode);
-  assert.equal(g.phase,'playing','timed exposure alone never triggers victory');
-  assert.equal(g.boss.hp,g.boss.maxHp);
+  for(const mode of ['electric','laser','lunge','missile'])assert(seen.has(mode),'missing '+mode+' telegraph');
 });
 test('checkpoints respawn without world clipping',()=>{
   const g=create();g.start();g.spawns=[];
