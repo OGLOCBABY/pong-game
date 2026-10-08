@@ -1,6 +1,6 @@
 # Plan — STRIKELINE / Pong
 
-Status: **Implemented and tested** (18/18 Node tests; real Chromium/Firefox/WebKit quality gate; see [qa.md](qa.md)).
+Status: **Implemented and tested** (21/21 Node tests, 72 completed property-test matches; real Chromium/Firefox/WebKit quality gate; see [qa.md](qa.md)).
 Related research: [research.md](research.md).
 
 ## Product vision
@@ -42,8 +42,12 @@ A distinctive, polished, modern single-screen Pong arcade: deep midnight arena, 
 - [x] `package.json`: Node tests, browser tests; no production dependencies.
 - [x] `tests/engine.test.mjs`: state transitions, deterministic serves, wall reflections, paddle hit, paddle miss, scoring cap, pause, AI limits and timestep invariants.
 - [x] `tests/ai-balance.test.mjs`: completed expert-vs-Pro and pressure-gradient stress simulations.
+- [x] `tests/property.test.mjs`: 72 complete games and numerical/scoring/paddle invariants across modes and difficulties.
+- [x] `tests/audio.test.mjs`: Web Audio and muted suspended-context safety.
+- [x] `.gitignore`: exclude local dependencies and generated screenshot artifacts.
 - [x] `tests/browser-smoke.mjs`: Playwright Chromium script controlling a real browser, checking start/pause/restart, keys/pointer/mobile/local multiplayer, runtime errors, screenshot and an automated rally session.
 - [x] `.github/workflows/quality.yml`: unit test + Playwright smoke on pushes/PRs; screenshot artifact when available.
+- [x] `.github/workflows/pages.yml`: conditionally publish this repository's static site after a green quality run, only if owner has enabled Pages.
 - [x] Run and fix all available tests; audit visual output where browser evidence can be accessed.
 - [x] Complete `qa.md` with evidence-based scoring, observed failures and any unresolved limitations.
 - [x] Close checkboxes, keep clear revision history, verify final repository tree/commit.
@@ -51,8 +55,8 @@ A distinctive, polished, modern single-screen Pong arcade: deep midnight arena, 
 ## Current disposition
 
 - Completed: original game, visual identity, local multiplayer, three AI skill levels, audio, accessible controls, physics and automated three-engine browser tests.
-- Independently reported rating: **9.5/10 provisional** (see [qa.md](qa.md)). Passing all automated checks is not the same as a defensible perfect score.
-- External/manual gates still unclosed: owner-controlled GitHub Pages enablement, real-device and human playtesting, physical audio listening and manual assistive-technology assessment. These do not require additional changes outside this repository and have not been fabricated as passes.
+- Independently reported rating: **9.6/10 provisional** (see [qa.md](qa.md)). Passing all automated checks is not the same as a defensible perfect score.
+- External/manual gates still unclosed: owner-controlled GitHub Pages enablement (Pages reports disabled), real-device and human playtesting, physical audio listening and manual assistive-technology assessment. These do not require changes to other user repositories and have not been fabricated as passes.
 - Evidence: [most recent CI runs](https://github.com/OGLOCBABY/pong-game/actions/workflows/quality.yml) and screenshot artifacts.
 
 ## Game logic
