@@ -21,14 +21,14 @@ const ENEMY_LAYOUT = [
 ];
 const PICKUP_LAYOUT = [
   [630,'grenade'],[1240,'heavy'],[1520,'gem'],[1880,'antidote'],[2150,'pow'],[2390,'spread'],
-  [2870,'antidote'],[3110,'grenade'],[3430,'pow'],[3480,'antidote'],[3730,'gem'],[4140,'antidote'],
+  [2870,'antidote'],[3110,'grenade'],[3430,'pow'],[3480,'antidote'],[3730,'gem'],[4100,'antidote'],[4140,'antidote'],[4450,'antidote'],[4800,'antidote'],[5200,'antidote'],
   [4420,'heavy'],[4720,'pow'],[4990,'slug'],[5200,'health'],[5530,'grenade']
 ];
 const PLATFORMS = [
   {x:1035,y:380,w:210},{x:2040,y:375,w:185},{x:2290,y:320,w:190},{x:2900,y:365,w:190},
   ...TOWER_PLATFORMS
 ];
-const PICKUP_HEIGHTS = {2150:330,2390:278,3430:408,3730:286,4420:292,4720:413};
+const PICKUP_HEIGHTS = {2150:330,2390:278,3430:408,3730:286,4100:170,4450:0,4800:-165,5200:-420};
 const PHASES = ['DUNES AT DUSK','BENEATH THE STONE','THE RISING TOMB','IRON COLOSSUS'];
 export function actAt(x) {return x < 1650 ? 0 : x < 3480 ? 1 : x < BOSS_START ? 2 : 3;}
 export function phaseTitle(x) {return PHASES[actAt(x)];}
@@ -166,7 +166,7 @@ export class RuinsGame {
     if(this.vehicle.mounted){this.vehicle.x=p.x;this.vehicle.y=p.y;}
     p.crouch=I.down&&!I.up&&p.grounded&&!this.vehicle.mounted;
     p.vx=d*speed*(p.crouch?.52:1);if(d)p.dir=d;
-    if(I.jump&&p.grounded){p.vy=this.vehicle.mounted?-610:p.curse>0?-345:-490;p.grounded=false;this.emit('jump');}
+    if(I.jump&&p.grounded){p.vy=this.vehicle.mounted?-610:p.curse>0?-465:-490;p.grounded=false;this.emit('jump');}
     if(I.fire)this.firePlayer();if(I.grenade)this.toss();
     const prevBottom=p.y+p.h;
     p.vy=clamp(p.vy+G*dt,-750,780);
