@@ -59,7 +59,7 @@ export class RuinsGame {
     this.secrets=[{x:366,y:281,w:22,h:25,kind:'sphinx',triggered:false},{x:4220,y:-10,w:30,h:26,kind:'lamp',triggered:false}];
     this.particles=[];this.floating=[];this.events=[];this.input={left:false,right:false,up:false,down:false,jump:false,fire:false,grenade:false,interact:false};
     this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:0,x:null,y:null};this.hazards=[];this.gateOpen=false;this.sceneId='desert';this.scenes=SCENES;this.maxHeight=0;
-    this.boss={x:6100,y:405,hp:58,maxHp:58,active:false,dead:false,t:0,attackT:1.5,phase:0,telegraph:0,entry:0,mode:'missile',counter:0,charges:0};
+    this.boss={x:6100,y:405,hp:58,maxHp:58,active:false,dead:false,t:0,attackT:1.5,phase:0,telegraph:0,entry:0,mode:'missile',counter:0,charges:0,targetX:0};
     this.act=0;this.bossGate=false;this.kills=0;this.shots=0;this.hits=0;this.rescues=0;this.combo=0;this.comboTimer=0;
     return this;
   }
@@ -231,7 +231,7 @@ export class RuinsGame {
       if(b.telegraph<=0){
         const p=this.player,mode=b.mode;
         if(mode==='laser'){
-          const beamX=clamp(p.x+p.w/2,5820,6220);
+          const beamX=b.targetX;
           this.hazards.push({kind:'laser',x:beamX,y:b.y-720,w:102,h:730,life:.55});
           b.charges++;this.emit('laser',beamX,b.y-150);
         }else if(mode==='electric'){
@@ -254,6 +254,7 @@ export class RuinsGame {
       b.counter++;
       const sequence=this.vehicle.mounted?['electric','laser','lunge','electric','laser']:['missile','laser','lunge','missile','laser'];
       b.mode=sequence[(b.counter-1)%sequence.length];
+      b.targetX=clamp(this.player.x+this.player.w/2,5820,6220);
       b.telegraph=b.mode==='laser'?.88:b.mode==='lunge'?.55:.52;
       b.attackT=[3.1,2.6,2.3][b.phase]+b.telegraph;
       this.emit('warning',b.x-80,b.y,{mode:b.mode});
@@ -299,7 +300,7 @@ export class RuinsGame {
     for(const q of this.floating){q.y-=28*dt;q.life-=dt;}this.floating=this.floating.filter(q=>q.life>0);
     this.enemies=this.enemies.filter(e=>!e.dead||e.hit>0);
     this.comboTimer-=dt;if(this.comboTimer<=0)this.combo=0;
-    const cameraX=clamp(this.player.x-340,0,WORLD_END-WIDTH),cameraY=Math.min(0,this.player.y-210);
+    const cameraX=clamp(this.player.x-340,0,WORLD_END-WIDTH),cameraY=this.boss.active?-850:Math.min(0,this.player.y-210);
     this.camera.x+=((cameraX)-this.camera.x)*Math.min(1,dt*7);
     this.camera.y+=(Math.max(-1050,cameraY)-this.camera.y)*Math.min(1,dt*6);
     return this.events;
