@@ -1,82 +1,201 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RuinsGame,FIXED_DT,FLOOR,BOSS_START,WIDTH,HEIGHT,WORLD_END,actAt,phaseTitle} from '../engine.js';
-const make=()=>new RuinsGame({seed:1234});
+import {RuinsGame, FIXED_DT, FLOOR, WIDTH, HEIGHT, WORLD_END, BOSS_START, sweptHit, actAt} from '../engine.js';
+import {SCENES,TOWER_PLATFORMS,TOWER_GATES,routeGate,sceneAt} from '../level.js';
+
+const create=(mode='faithful',seed=1234)=>new RuinsGame({seed,mode});
 const tick=(g,n=1)=>{for(let i=0;i<n&&g.phase==='playing';i++)g.step(FIXED_DT);};
+const input=(g,actions,n)=>{g.setInput(actions);tick(g,n);};
 
-test('logical coordinate and act gates are stable',()=>{
-  assert.equal(WIDTH,960);assert.equal(HEIGHT,540);assert.ok(WORLD_END>BOSS_START);
-  assert.deepEqual([0,1700,3500,5500].map(actAt),[0,1,2,3]);assert.equal(phaseTitle(0),'DUNES AT DUSK');
+test('six authored scene definitions and actual climb height are stable',()=>{
+  assert.equal(WIDTH,960);assert.equal(HEIGHT,540);assert.equal(FLOOR,456);
+  assert.equal(SCENES.length,6);assert.equal(sceneAt(0).id,'desert');
+  assert.equal(sceneAt(BOSS_START+1).id,'boss');
+  assert.equal(TOWER_PLATFORMS.at(-1).y,-570);
+  assert.ok(TOWER_GATES.length>=10);assert.equal(actAt(1700),1);
 });
-test('ready is motionless until explicit start',()=>{
-  const g=make();const before=g.snapshot();g.setInput({right:true,fire:true});g.step(1);assert.equal(g.phase,'ready');assert.deepEqual(g.snapshot(),before);
-  g.start();tick(g,10);assert.ok(g.player.x>before.player.x);assert.ok(g.shots>=1);
+test('initial state and explicit start gate',()=>{
+  const g=create(),baseline=g.snapshot();
+  g.setInput({right:true,fire:true});g.step(.5);
+  assert.deepEqual(g.snapshot(),baseline);assert.equal(g.phase,'ready');
+  g.start();tick(g,10);assert.ok(g.player.x>100);assert.ok(g.player.shots>=1);
 });
-test('reset reinstates score, health, ammo and enemies',()=>{
-  const g=make();g.start();g.addScore(300,0,0);g.player.health=1;g.player.ammo=2;g.reset();assert.equal(g.phase,'ready');assert.equal(g.score,0);assert.equal(g.player.health,3);assert.equal(g.player.lives,3);assert.equal(g.player.ammo,Infinity);assert.equal(g.enemies.length,0);
+test('Arcade is genuinely one-hit, Practice is explicitly more forgiving',()=>{
+  const a=create(),p=create('practice');a.start();p.start();a.spawns=[];p.spawns=[];
+  assert.equal(a.player.health,1);assert.equal(a.player.lives,3);
+  assert.equal(p.player.health,5);assert.equal(p.player.lives,5);
+  a.damagePlayer(1);p.damagePlayer(1);
+  assert.equal(a.player.lives,2);assert.equal(a.player.health,1);
+  assert.equal(p.player.lives,5);assert.equal(p.player.health,4);
 });
-test('seeded simulation produces identical results',()=>{
-  const a=make(),b=make();a.start();b.start();a.setInput({fire:true,right:true});b.setInput({fire:true,right:true});tick(a,350);tick(b,350);assert.deepEqual(a.snapshot(),b.snapshot());
+test('seeded simulations have deterministic game state and camera',()=>{
+  const a=create('practice',777),b=create('practice',777);a.start();b.start();
+  for(let i=0;i<2200;i++){
+    const actions={right:true,fire:true,jump:i%390>180,grenade:i%470===0};
+    a.setInput(actions);b.setInput(actions);a.step(FIXED_DT);b.step(FIXED_DT);
+  }
+  assert.deepEqual(a.snapshot(),b.snapshot());
 });
-test('walking respects world bounds',()=>{
-  const g=make();g.start();g.setInput({left:true});tick(g,200);assert.equal(g.player.x,25);g.player.x=WORLD_END-30;g.setInput({left:false,right:true});tick(g,10);assert.ok(g.player.x<=WORLD_END-g.player.w-10);
+test('continuous bullet intersection cannot tunnel through thin targets',()=>{
+  assert(sweptHit({px:0,py:18,x:520,y:18,r:2},{x:210,y:4,w:2,h:28}));
+  assert(!sweptHit({px:0,py:95,x:520,y:95,r:2},{x:210,y:4,w:2,h:28}));
+  assert(sweptHit({x:30,y:40,r:3},{x:27,y:36,w:8,h:10}));
 });
-test('jump rises and lands on the floor without sinking',()=>{
-  const g=make();g.start();g.setInput({jump:true});tick(g,15);assert.ok(g.player.y<FLOOR-g.player.h-5);g.setInput({jump:false});tick(g,130);assert.equal(g.player.y,FLOOR-g.player.h);assert.ok(g.player.grounded);
+test('Danger barrel physically gates descent and is destructible',()=>{
+  const g=create('practice');g.start();g.player.x=1600;g.spawns=[];g.spawn('barrel',1570);
+  input(g,{right:true},100);
+  assert.ok(g.player.x<=1650-g.player.w);
+  assert.equal(g.gateOpen,false);
+  const barrel=g.enemies.find(e=>e.type==='barrel');
+  g.damageEnemy(barrel,99,barrel.x,barrel.y);
+  assert.equal(g.gateOpen,true);
+  input(g,{right:true},50);
+  assert.ok(g.player.x>=1650);
 });
-test('raised platforms are landable when descending',()=>{
-  const g=make();g.start();const q=g.platforms[0];g.player.x=q.x+30;g.player.y=q.y-120;g.player.vy=40;g.player.grounded=false;tick(g,70);assert.equal(g.player.y+g.player.h,q.y);assert.ok(g.player.grounded);
+test('climbing gates are position AND altitude constrained',()=>{
+  assert.equal(routeGate(3750,3800,456,true),3790-26);
+  assert.equal(routeGate(3750,3800,275,true),3800);
+  assert.equal(routeGate(1600,1650,456,false),1650-26);
+  assert.equal(routeGate(1600,1650,456,true),1650);
 });
-test('pause freezes time player movement and every projectile',()=>{
-  const g=make();g.start();g.setInput({right:true,fire:true});tick(g,45);g.togglePause();const before=g.snapshot();tick(g,200);assert.deepEqual(g.snapshot(),before);g.togglePause();tick(g,20);assert.ok(g.time>before.time);
+test('jump is physically ballistic, platform landing does not tunnel',()=>{
+  const g=create('practice');g.start();g.spawns=[];
+  g.setInput({jump:true});tick(g,17);assert.ok(g.player.y<FLOOR-g.player.h);
+  g.setInput({jump:false});tick(g,150);assert.equal(g.player.y,FLOOR-g.player.h);
+  const platform=g.platforms[0];
+  g.player.x=platform.x+25;g.player.y=platform.y-140;g.player.vy=50;g.player.grounded=false;
+  tick(g,80);assert.equal(g.player.y+g.player.h,platform.y);
 });
-test('pistol and special weapons have bounded cooldown/ammo',()=>{
-  const g=make();g.start();g.setInput({fire:true});tick(g,2);assert.equal(g.player.shots,1);tick(g,3);assert.equal(g.player.shots,1);g.collect({type:'heavy',x:100,y:420,taken:false});assert.equal(g.player.weapon,'heavy');assert.equal(g.player.ammo,175);tick(g,100);assert.ok(g.player.shots>5);
+test('pause blocks all simulation activity and resumes',()=>{
+  const g=create('practice');g.start();g.setInput({right:true,fire:true});tick(g,40);
+  g.togglePause();const before=g.snapshot();tick(g,300);g.step(1);
+  assert.deepEqual(g.snapshot(),before);g.togglePause();tick(g,20);
+  assert.ok(g.time>before.time);
 });
-test('grenades consume stock and cause radial damage',()=>{
-  const g=make();g.start();g.spawn('mummy',140);const target=g.enemies[0];const life=target.hp;g.player.grenades=1;g.setInput({grenade:true});tick(g,2);assert.equal(g.player.grenades,0);assert.equal(g.grenades.length,1);g.grenades[0].x=target.x;g.grenades[0].y=target.y;g.grenades[0].fuse=0;tick(g,1);assert.ok(target.hp<life||target.dead);assert.equal(g.grenades.length,0);
+test('ordinary pistol cooldown, Heavy ammo and spread have bounded rates',()=>{
+  const g=create('practice');g.start();g.setInput({fire:true});tick(g,2);
+  const n=g.shots;tick(g,3);assert.equal(g.shots,n);
+  g.collect({type:'heavy',x:100,y:420,taken:false});
+  tick(g,80);assert.equal(g.player.weapon,'heavy');assert.ok(g.shots>8);
+  assert.ok(g.player.ammo<175);
+  g.collect({type:'spread',x:100,y:420,taken:false});
+  assert.equal(g.player.weapon,'spread');
 });
-test('mummies curse the player and antidote removes curse',()=>{
-  const g=make();g.start();assert.equal(g.damagePlayer(1,'curse'),true);assert.ok(g.player.curse>0);assert.equal(g.player.health,3);g.collect({type:'antidote',x:150,y:420,taken:false});assert.equal(g.player.curse,0);
+test('crouch, up and air down shots have the correct weapon vector',()=>{
+  const g=create('practice');g.start();g.spawns=[];
+  g.setInput({up:true,fire:true});tick(g,1);
+  assert.ok(g.bullets.some(b=>b.owner==='player'&&b.vy<0));
+  g.player.fireCooldown=0;g.setInput({up:false,down:true,jump:true,fire:true});tick(g,5);
+  g.player.fireCooldown=0;tick(g,1);
+  assert.ok(g.bullets.some(b=>b.owner==='player'&&b.vy>0));
 });
-test('invulnerability prevents rapid double hits',()=>{
-  const g=make();g.start();g.spawns=[];g.damagePlayer(1);assert.equal(g.player.health,2);assert.equal(g.damagePlayer(1),false);tick(g,240);assert.equal(g.damagePlayer(1),true);assert.equal(g.player.health,1);
+test('grenades are finite and their explosion hurts enemies',()=>{
+  const g=create('practice');g.start();g.spawn('mummy',140);const mummy=g.enemies[0];
+  g.player.grenades=1;g.setInput({grenade:true});tick(g,2);
+  assert.equal(g.player.grenades,0);assert.equal(g.grenades.length,1);
+  g.grenades[0].x=mummy.x;g.grenades[0].y=mummy.y;g.grenades[0].t=2;
+  tick(g,1);assert.ok(mummy.hp<mummy.maxHp||mummy.dead);
 });
-test('dying uses checkpoint and eventually fails',()=>{
-  const g=make();g.start();g.player.checkpoint=3500;g.player.health=1;g.damagePlayer(1);assert.equal(g.player.lives,2);assert.equal(g.player.x,3500);assert.equal(g.player.health,3);tick(g,400);g.player.health=1;g.player.invuln=0;g.damagePlayer(1);assert.equal(g.player.lives,1);g.player.health=1;g.player.invuln=0;g.damagePlayer(1);assert.equal(g.phase,'lost');
+test('first purple attack mummifies; second kills in Arcade',()=>{
+  const g=create();g.start();g.spawns=[];g.damagePlayer(1,'curse');
+  assert.ok(g.player.curse>0);assert.equal(g.player.weapon,'pistol');
+  g.player.invuln=0;g.damagePlayer(1,'curse');
+  assert.equal(g.player.lives,2);assert.equal(g.player.curse,0);
 });
-test('rescuing POW increases rescue count, gems add score',()=>{
-  const g=make();g.start();const pow={type:'pow',x:55,y:55,taken:false};g.collect(pow);g.collect(pow);assert.equal(g.rescues,1);assert.equal(g.score,1000);g.collect({type:'gem',x:55,y:55,taken:false});assert.equal(g.score,3000);
+test('Practice second purple hit is survivable and never permanently soft-locks',()=>{
+  const g=create('practice');g.start();g.damagePlayer(1,'curse');
+  g.player.invuln=0;g.damagePlayer(1,'curse');
+  assert.equal(g.player.curse,0);assert.equal(g.player.health,4);
 });
-test('enemy projectile damages player when invulnerability ends',()=>{
-  const g=make();g.start();const p=g.player;g.enemyShot(p.x-65,p.y+20,400,0,'bullet');tick(g,25);assert.equal(p.health,2);
+test('antidote explicitly reverses persistent mummy transformation',()=>{
+  const g=create();g.start();g.damagePlayer(1,'curse');tick(g,1200);
+  assert.ok(g.player.curse>0,'curse must not expire on a timer');
+  g.collect({type:'antidote',x:1800,y:410,taken:false});
+  assert.equal(g.player.curse,0);
 });
-test('bullet kills an enemy via world-space collision',()=>{
-  const g=make();g.start();g.spawn('rifle',g.player.x+90);g.setInput({fire:true});tick(g,130);assert.ok(g.kills>=1);
+test('invulnerable after ordinary damage, then vulnerable again',()=>{
+  const g=create('practice');g.start();g.spawns=[];g.damagePlayer(1);
+  assert.equal(g.player.health,4);assert.equal(g.damagePlayer(1),false);
+  tick(g,400);assert.equal(g.damagePlayer(1),true);assert.equal(g.player.health,3);
 });
-test('boss remains dormant before gate and attacks afterwards',()=>{
-  const g=make();g.start();tick(g,10);assert.equal(g.boss.active,false);g.player.x=BOSS_START+2;tick(g,1);assert.equal(g.boss.active,true);assert.equal(g.bossGate,true);tick(g,500);assert.ok(g.boss.t>0);
+test('Slugnoid is a genuine mounted entity with damageable twin guns',()=>{
+  const g=create('practice');g.start();
+  g.collect({type:'slug',x:5000,y:-320,taken:false});
+  assert.equal(g.vehicle.mounted,true);assert.equal(g.vehicle.gunsLeft,2);
+  g.setInput({fire:true});tick(g,1);assert.ok(g.bullets.filter(b=>b.kind==='vulcan').length>=2);
+  g.player.invuln=0;g.damagePlayer(1);
+  assert.equal(g.vehicle.hp,2);assert.equal(g.vehicle.gunsLeft,1);
+  assert.equal(g.player.lives,5);
 });
-test('boss arena prevents walking past head and abandoning fight',()=>{
-  const g=make();g.start();g.player.x=BOSS_START+5;tick(g,1);g.setInput({right:true});tick(g,500);assert.ok(g.player.x<=5850);
+test('Slugnoid can exit, re-enter and fire a downward main cannon',()=>{
+  const g=create('practice');g.start();g.collect({type:'slug',x:100,y:400,taken:false});
+  g.setInput({interact:true});tick(g,1);assert.equal(g.vehicle.mounted,false);
+  g.setInput({interact:false});tick(g,1);
+  g.setInput({interact:true});tick(g,1);assert.equal(g.vehicle.mounted,true);
+  g.setInput({interact:false,grenade:true});tick(g,1);
+  assert.ok(g.bullets.some(b=>b.kind==='cannon'&&b.vy>0));
 });
-test('boss has 3 phases and produces a genuine win only on defeat',()=>{
-  const g=make();g.start();g.player.x=BOSS_START+4;tick(g,2);assert.equal(g.phase,'playing');g.damageBoss(23,6100,350);assert.equal(g.boss.phase,1);g.damageBoss(25,6100,350);assert.equal(g.boss.phase,2);g.damageBoss(100,6100,350);assert.equal(g.phase,'won');assert.equal(g.boss.hp,0);assert.equal(g.boss.dead,true);assert.ok(g.score>=15000);
+test('vehicle explodes on armor depletion rather than killing player instantly',()=>{
+  const g=create('practice');g.start();g.collect({type:'slug',x:100,y:400,taken:false});
+  for(let n=0;n<3;n++){g.player.invuln=0;g.damagePlayer(1);}
+  assert.equal(g.vehicle.mounted,false);assert.equal(g.vehicle.hp,0);assert.equal(g.player.lives,5);
 });
-test('complete stage is winnable by a reproducible input-only bot',()=>{
-  const g=make();g.start();let i=0;while(g.phase==='playing'&&i<120*100){g.setInput({right:true,fire:true,grenade:i%330<2,jump:i%370<15});g.step(FIXED_DT);i++;}
-  assert.equal(g.phase,'won');assert.ok(g.player.lives>=1);assert.equal(g.boss.hp,0);assert.ok(g.kills>=20);assert.ok(g.score>=25000);assert.ok(g.time>20&&g.time<100);
+test('POWs and gems score once; secret Sphinx eye is discoverable',()=>{
+  const g=create('practice');g.start();const item={type:'pow',x:100,y:410,taken:false};
+  g.collect(item);g.collect(item);assert.equal(g.rescues,1);
+  const base=g.score;g.collect({type:'gem',x:100,y:410,taken:false});assert.equal(g.score,base+2000);
+  g.bullets.push({x:366,y:281,px:366,py:281,r:3,ttl:1,owner:'player',damage:1,vx:0,vy:0});
+  tick(g,1);assert(g.secrets[0].triggered);
 });
-
-test('hidden Sphinx eye rewards accurate aim without modifying world geometry',()=>{
- const g=make();g.start();g.bullets.push({x:366,y:281,px:366,py:281,vx:0,vy:0,r:3,ttl:1,owner:'player',damage:1});tick(g,1);
- assert.equal(g.secrets[0].triggered,true);assert.ok(g.score>=10000);
+test('boss cannot start without actually reaching upper roof',()=>{
+  const g=create('practice');g.start();g.spawns=[];
+  g.player.x=BOSS_START+3;g.player.y=408;tick(g,3);assert.equal(g.boss.active,false);
 });
-test('hidden golden lamp reveals an array of discoverable treasures',()=>{
- const g=make();g.start();g.camera=3800;const before=g.pickups.length;g.bullets.push({x:4195,y:245,px:4195,py:245,vx:0,vy:0,r:3,ttl:1,owner:'player',damage:1});tick(g,1);
- assert.equal(g.secrets[1].triggered,true);assert.equal(g.pickups.length,before+12);
+test('boss starts from below, telegraphs multiple attacks and can genuinely be defeated',()=>{
+  const g=create('practice');g.start();g.spawns=[];g.player.x=BOSS_START+5;
+  g.player.y=-618;g.player.grounded=true;tick(g,2);
+  assert.equal(g.boss.active,true);assert.ok(g.boss.entry<1);
+  tick(g,250);assert.equal(g.boss.entry,1);
+  const hp=g.boss.hp;g.damageBoss(25,g.boss.x,g.boss.y);
+  assert.ok(g.boss.hp<hp);
+  g.damageBoss(100,g.boss.x,g.boss.y);
+  assert.equal(g.phase,'won');assert.equal(g.boss.dead,true);
 });
-test('Slug walker power-up grants ammo and survives complete run without cheating',()=>{
- const g=make();g.start();g.player.health=1;g.collect({type:'slug',x:200,y:400,taken:false});assert.equal(g.player.weapon,'slug');assert.equal(g.player.ammo,240);assert.equal(g.player.health,3);
- g.setInput({fire:true});tick(g,40);assert.ok(g.player.ammo<240);
+test('checkpoints respawn without world clipping',()=>{
+  const g=create();g.start();g.spawns=[];
+  g.player.checkpoint=5450;g.player.checkpointY=-618;
+  g.damagePlayer(1);assert.equal(g.player.x,5450);assert.equal(g.player.y,-618);
+  assert.equal(g.player.health,1);
+});
+test('real route cannot be completed by holding right and fire without jumping',()=>{
+  const g=create('practice');g.start();
+  for(let n=0;n<120*55&&g.phase==='playing';n++){g.setInput({right:true,fire:true});g.step(FIXED_DT);}
+  assert.notEqual(g.phase,'won');assert.equal(g.boss.active,false);
+  assert.ok(g.player.x<=3790,'player must not walk through the vertical maze');
+});
+test('complete practice playthrough must use inputs, climb and defeat real boss',()=>{
+  const g=create('practice');g.start();const visited=new Set();let i=0;
+  while(g.phase==='playing'&&i<120*120){
+    const p=g.player,b=g.boss;
+    g.setInput({right:!b.active||p.x<b.x-60,
+      left:b.active&&p.x>b.x-20,
+      jump:p.x>3440||b.active,
+      fire:true,down:b.active,
+      grenade:i%330===0});
+    g.step(FIXED_DT);visited.add(g.sceneId);i++;
+  }
+  assert.equal(g.phase,'won',JSON.stringify({scene:g.sceneId,x:g.player.x,y:g.player.y,health:g.player.health,lives:g.player.lives}));
+  assert.equal(g.boss.hp,0);assert.ok(g.time>20&&g.time<120);
+  assert.ok(g.camera.y<-400,'real vertical camera required');
+  assert.ok(g.maxHeight<-600,'must physically ascend multiple screen-heights');
+  for(const scene of SCENES)assert.ok(visited.has(scene.id),'missing scene '+scene.id);
+  assert.ok(g.vehicle.serial>=1,'must encounter mounted Slugnoid');
+  assert.ok(g.kills>=15);assert.ok(g.score>=20000);
+});
+test('restart clears all transient combat events, curse and vehicle state',()=>{
+  const g=create('practice');g.start();g.collect({type:'slug',x:100,y:420,taken:false});
+  g.player.curse=100;g.addScore(300,0,0);g.reset();
+  assert.equal(g.phase,'ready');assert.equal(g.score,0);
+  assert.equal(g.camera.y,0);assert.equal(g.vehicle.mounted,false);assert.equal(g.player.curse,0);
+  assert.equal(g.gateOpen,false);assert.equal(g.boss.active,false);
 });
