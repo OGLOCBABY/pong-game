@@ -124,3 +124,57 @@ P0 = 未闭合不可声称“完整第二关”；P1 = 影响忠实度与 10/10 
 - [ ] 单独验证根 Pong 回归、双游戏 Pages 分发、GitHub Actions 门控实际执行结果。
 
 下一步详见同目录 [plan.md](plan.md)：**等待用户逐项批注和阶段批准后才进入 Implementation**。
+
+
+## 6. R2 深入审阅 / 跨来源校验补充（2026-10-09）
+
+审阅方式：逐一读取 `main` 与原型分支的完整 Git tree、原型 `engine.js`/`main.js`/`art.js`/`audio.js`、原型的测试入口和 Python 浏览器脚本、根 Pong 引擎与测试、根质量/Pages workflow；复核 GitHub Actions 的**具体 steps**，不单凭 run conclusion 绿灯。
+
+### 6.1 权威等级与录像时间轴
+
+| 证据 | 核实事实 | 信度 / 限制 |
+| --- | --- | --- |
+| [SNK 30 周年官方历史](https://www.snk-corp.co.jp/us/anniversary/metalslug30th/history/) | 1998 年二代扩展角色、载具和木乃伊转换机制 | 一级，一般规则，非逐帧 |
+| [1998 开发者访谈](https://shmuplations.com/metalslug2/) | Mission 2 纵向滚屏是刻意设计；Slugnoid 不支持连续按跳悬浮，必须跳跃攀升 | 一级访谈翻译，准确度高 |
+| [1998 原版关卡历史性攻略](https://www.arcade-history.com/game/1614/metal-slug-2-super-vehicle-001/ii-model-ngm-241) | Mission 2 包括狮身人面像眼睛、炸药桶、矿工、金字塔斜坡、解毒剂、Rumi 等秘密 | 二级文字攻略，奖励数值需复测 |
+| [Metal Slug Wiki: Monument of Depression](https://metalslug.fandom.com/wiki/Monument_of_Depression) | 1998 原作夜间开场，X 版白昼开场；敌人包含 Arabian Infantry/bats/mummies/generator，载具 Slugnoid | 社群百科，不作为帧数依据 |
+| [Metal Slug Wiki: Aeshi Nero](https://metalslug.fandom.com/wiki/Aeshi_Nero) | 巨型钻掘蛇机从塔下出现；飞弹/电球/紫色光炮/上冲伤害 | 社群百科 + 应以视频复核攻势触发 |
+| [Metal Slug 2 玩法背景](https://metalslug.fandom.com/wiki/Metal_Slug_2:_Super_Vehicle-001/II) | Slugnoid 双 Vulcan、朝下主炮，受伤损失炮台；木乃伊二次毒命中致死，解毒剂解除 | 社群资料，需在录像上取典型画面 |
+| [LongplayArchive（Neo Geo CD）](https://www.youtube.com/watch?v=FY4XlenEtog) | 视频**描述**标注 Mission 2 04:48 开始、Aeshi Nero 09:47、Mission 3 10:31 | 视频时长标记已核对；具体场景分界和输入帧 **NOT_VERIFIED** |
+| [MobyGames MVS / Neo Geo 截图](https://www.mobygames.com/game/16852/metal-slug-2-super-vehicle-001ii/screenshots/) | 墓室、木乃伊形态、原始画面密度与 UI 样式的参考 | 图像仅作比较，不能下载成发布资产 |
+
+**重要修正**：上版 `research.md` 使用的“第二关约 03:55”视频参考仅是另一个候选录像，缺乏核对；正式参考采用上表明确标注时间轴的长视频，**04:48–10:31 只是公开视频描述中可确认的 Mission 2/Boss 时段，绝非逐帧校准结果**。又因 Neo Geo CD 与 MVS 可能在加载/帧率方面有差异，精确输入判定必须标识平台并做容忍区间。
+
+**原作核心路线核对的优先级**：夜沙漠 → 狮身人面像眼睛隐藏奖励/战俘 → 士兵把守的 Danger 炸药桶入口 → 金字塔斜坡、矿工、木乃伊和棺/门生成源、解毒 → 多层塔与纵向爬升 → Slugnoid → 竖向 Aeshi Nero 争夺高处。S0–S5 的代号只是**工程分镜，不是宣称原版恰有六区**；从录像验证的事件优先于预设段数。
+
+### 6.2 GitHub Pages/CI 状态的交叉验证
+
+- 现行仓库元数据 `has_pages: true`（纠正旧 Pong 文档的 `has_pages: false`；那是旧快照）。
+- [Pages run 37818224792](https://github.com/OGLOCBABY/pong-game/actions/runs/37818224792) 的真实 steps：“Check out only this repository”、“Assemble dependency-free static site”、“Upload only runtime site files”、“Deploy”均执行为 success；日志给出 environment URL `https://oglocbaby.github.io/pong-game/`。
+- [Pong quality run 37814781401](https://github.com/OGLOCBABY/pong-game/actions/runs/37814781401) 的日志列出 21/21 Node tests 与 Chromium/Firefox/WebKit smoke 成功；这是**旧 Pong 的历史证据**。
+- [Pages run 37815110012](https://github.com/OGLOCBABY/pong-game/actions/runs/37815110012) 虽显示 run success，但内部 checkout/build/deploy 均 skipped；证明**不能仅用 workflow_run.conclusion 判定实际已发布**。
+- 当前 `pages.yml` 仅同步根 Pong 的静态资源，**不含** `metal-slug-2/`；当前 `quality.yml` 未运行第二关测试。
+- 当前 `workflow_dispatch` 分支允许即使前置质量流程未过仍运行 deploy；下一阶段必须加同步测试 gate 或禁止发布。成功部署工作流必须验证 **JS/CSS 请求成功+浏览器真实可玩**。
+- 外部网页工具目前未能读取 Pages 实际站点，**因此不能称已完成公网访问测试**；后续在 CI 通过 `curl` 和 Playwright 打开公网 URL 检查。任何访问失败都须记录错误类型，而不是假称 404 或成功。
+
+### 6.3 严格代码审计发现的新风险
+
+| 代码事实 | 风险与可验证修复 |
+| --- | --- |
+| 原型 `sweptHit` 实际只判断终点；弹丸有 `px,py` 但未用于 swept | 写线段-AABB 进入时间和方向测试，高速弹丸、边界掠过、两敌遮挡至少各一个 fixture |
+| `player.health=3` 且 `lives=3`（普通受击未即死） | 将 Practice 和 Faithful 伤害模型隔离，不用这种保血默认去伪称原版难度 |
+| 当前 `player.curse=7.5` 秒自动减至 0，再中毒无死亡逻辑 | 真正 mummified 状态直到解毒；二次有效中毒致死、首次感染和 invulnerability 次序用单测验证 |
+| `camera` 只是一个浮点 X；`WORLD_END` 大水平场景，塔平台 Y 全在一个屏高内 | 新场景必须有 >= 2 屏高可探索区，有真实相机 y 变化、纵向下落/上爬/相机死区 |
+| Boss 只用 HP 阈值/向左子弹扇射且角色仅在右侧平台对攻 | 必须竖向开战，飞弹、电球、范围光炮和从下方冲锋，敌弹可躲、部分可摧毁，效果基于载具状态 |
+| Slug pickup 改 `weapon` 不改 player shape/vehicle | 载具需要单独碰撞体、运动/跳跃、耐久、炮台损坏、乘坐退出/重生逻辑 |
+| 持续按右+射击 + 若干跳跃的固定输入 bot 完整胜利 | 不能作为忠实度证明；必须测“只右走”无法绕过塔与 Boss，必须证明输入经过真实路由 |
+| 原型 `package.json` 的 `smoke` 指向不存在的 `tests/browser-smoke.mjs` | 必须补真正 HTTP/ESM 版 Playwright 脚本并装入根 CI；旧 Python 脚本的本地 Chrome 路径不具可移植性 |
+| 根 Pages 构建固定 copy 列表 | 部署第二关时必须维护完整清单、正确嵌套路径、白名单和静态资源审计 |
+| 现有技术路线偏原创 Canvas，而用户要求“尽可能忠实” | 关键差距不是简单增加粒子；严格以路线/相机/手感/载具和 Boss 为前置验收 |
+
+### 6.4 研究阶段判定
+
+- **研究证据覆盖：PASS_WITH_LIMITATIONS** —— 已审计所有本轮新增文档及工程原型，识别全部主要 P0/P1 和素材/发布风险；引用分级、时间轴和不确定性如上。
+- **原版逐帧拆图/输入帧采样：NOT_RUN** —— 当前参考资源有版权且公开视频无法证明源代码级帧匹配，作为实现对照任务，不是伪造“已复现”的条件。
+- **第二关新运行时测试：NOT_RUN** —— 在代码未改阶段没有新通过证明。
+- **下一 Gate 判定**：只要 Planning 将每项缺口映射到文件、实装步骤、失败判定、证据和回滚动作，且得到本次用户预授权覆盖，便可进入工程实施；“研究覆盖”并非“功能已闭合”。
