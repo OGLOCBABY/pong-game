@@ -583,6 +583,12 @@ function frame(now) {
   hudAccumulator += frameDt;
   if (hudAccumulator > 0.08) {
     syncHUD();
+    // Some embedded engines update matchMedia.matches without dispatching change.
+    // Keep control semantics correct even if that browser event is missing.
+    if (elements.motionButton.disabled !== Boolean(motionMedia?.matches)) {
+      if (!motionOn()) { particles = []; ballTrail = []; shake = 0; }
+      syncPreferences();
+    }
     hudAccumulator = 0;
   }
   requestAnimationFrame(frame);
