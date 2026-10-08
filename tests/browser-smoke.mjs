@@ -1,12 +1,12 @@
 /**
  * Real Chromium smoke and scripted play session.
- * Usage: npm install && npx playwright install chromium && npm run smoke
+ * Usage: npm install && npx playwright install chromium firefox webkit && npm run smoke
  * All screenshots go under this repository's test-results/ directory.
  */
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
-import { dirname, extname, resolve, sep } from 'node:path';
+import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { chromium, firefox, webkit } from 'playwright';
@@ -48,6 +48,15 @@ await new Promise((accept) => server.listen(0, '127.0.0.1', accept));
 const url = 'http://127.0.0.1:' + server.address().port + '/';
 let browser;
 const errors = [];
+const externalRequests = [];
+function watchNetwork(page, name) {
+  page.on('request', (request) => {
+    const endpoint = request.url();
+    if (/^https?:\/\//.test(endpoint) && new URL(endpoint).origin !== new URL(url).origin) {
+      externalRequests.push(name + ': ' + endpoint);
+    }
+  });
+}
 const snapshot = (page) => page.evaluate(() => window.__STRIKELINE_DIAGNOSTICS__.snapshot());
 const waitBoot = (page) => page.waitForFunction(
   () => typeof window.__STRIKELINE_DIAGNOSTICS__?.snapshot === 'function',
@@ -78,6 +87,7 @@ const waitPlaying = (page) => page.waitForFunction(
 try {
   browser = await chromium.launch({ headless: true });
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+  watchNetwork(desktop, 'desktop');
   desktop.on('pageerror', (error) => errors.push('desktop: ' + error.message));
   desktop.on('console', (message) => { if (message.type() === 'error') errors.push('desktop console: ' + message.text()); });
 
@@ -91,7 +101,7 @@ try {
   await auditAccessibility(desktop, 'desktop');
   console.log('PASS desktop page loads and initial screenshot captured');
 
-  await desktop.locator('#primary-action').click();
+  await desktop.keyboard.press('Enter');
   await waitPlaying(desktop);
   const beforeUp = (await snapshot(desktop)).paddles.left.y;
   await desktop.keyboard.down('w');
@@ -135,6 +145,15 @@ try {
   await desktop.locator('#motion-button').click();
   assert.equal((await snapshot(desktop)).effects, true);
   console.log('PASS mode, difficulty, sound and effects settings');
+  await desktop.reload({ waitUntil: 'networkidle' });
+  await waitBoot(desktop);
+  const persisted = await snapshot(desktop);
+  assert.equal(persisted.mode, 'cpu');
+  assert.equal(persisted.difficulty, 'rookie');
+  assert.equal(persisted.sound, false);
+  assert.equal(persisted.effects, true);
+  assert.equal(persisted.phase, 'idle');
+  console.log('PASS persisted user preferences after reload');
 
   // An automated paddle controller *plays* the game in a real browser.
   await desktop.locator('#primary-action').click();
@@ -166,6 +185,11 @@ try {
   assert.deepEqual(restarted.score, { left: 0, right: 0 });
   await waitPlaying(desktop);
   console.log('PASS instant keyboard restart and score reset');
+  await desktop.keyboard.press('p');
+  assert.equal((await snapshot(desktop)).phase, 'paused');
+  await desktop.keyboard.press('Space');
+  assert.equal((await snapshot(desktop)).phase, 'playing');
+  console.log('PASS P and Space hotkeys');
 
   // Real complete match in Chromium. Park opposite paddles so rallies terminate
   // naturally, then verify the final-score overlay and the rematch contract.
@@ -191,6 +215,7 @@ try {
   assert.equal(await desktop.locator('#primary-action-label').innerText(), 'PLAY AGAIN');
   await desktop.waitForTimeout(350); // Let the end-of-match overlay finish its entry animation.
   await desktop.screenshot({ path: resolve(output, '03b-desktop-final-score.png'), fullPage: true });
+  await auditAccessibility(desktop, 'game-over');
   await desktop.locator('#primary-action').click();
   const rematch = await snapshot(desktop);
   assert.equal(rematch.phase, 'ready');
@@ -203,6 +228,7 @@ try {
     deviceScaleFactor: 2, isMobile: true, hasTouch: true,
   });
   const mobile = await mobileContext.newPage();
+  watchNetwork(mobile, 'mobile');
   mobile.on('pageerror', (error) => errors.push('mobile: ' + error.message));
   mobile.on('console', (message) => { if (message.type() === 'error') errors.push('mobile console: ' + message.text()); });
   await mobile.goto(url, { waitUntil: 'networkidle' });
@@ -254,9 +280,15 @@ try {
   assert.equal(await mobile.locator('#motion-button').getAttribute('aria-pressed'), 'false');
   assert.equal(await mobile.locator('#motion-button').isDisabled(), true);
   console.log('PASS OS reduced-motion preference and accurate disabled controls');
+  await mobile.setViewportSize({ width: 844, height: 390 });
+  const landscapeOverflow = await mobile.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(landscapeOverflow < 3, 'mobile landscape must not scroll horizontally: ' + landscapeOverflow);
+  await mobile.screenshot({ path: resolve(output, '05b-mobile-landscape.png'), fullPage: true });
+  console.log('PASS responsive 844px mobile landscape and screenshot');
 
   const tinyContext = await browser.newContext({ viewport: { width: 320, height: 740 }, deviceScaleFactor: 1 });
   const tiny = await tinyContext.newPage();
+  watchNetwork(tiny, 'narrow-phone');
   tiny.on('pageerror', (error) => errors.push('tiny: ' + error.message));
   await tiny.goto(url, { waitUntil: 'networkidle' });
   await waitBoot(tiny);
@@ -271,12 +303,19 @@ try {
     const alternate = await engine.launch({ headless: true });
     try {
       const other = await alternate.newPage({ viewport: { width: 1280, height: 800 } });
+      watchNetwork(other, engineName);
       other.on('pageerror', (error) => errors.push(engineName + ': ' + error.message));
       await other.goto(url, { waitUntil: 'networkidle' });
       await waitBoot(other);
       assert.equal((await snapshot(other)).phase, 'idle', engineName);
       await other.locator('#primary-action').click();
       await waitPlaying(other);
+      const yBefore = (await snapshot(other)).paddles.left.y;
+      await other.keyboard.down('w');
+      await other.waitForTimeout(210);
+      await other.keyboard.up('w');
+      const yAfter = (await snapshot(other)).paddles.left.y;
+      assert(yAfter < yBefore - 22, engineName + ' keyboard controls must move left paddle');
       await other.locator('#pause-button').click();
       assert.equal((await snapshot(other)).phase, 'paused', engineName);
       await other.waitForTimeout(350); // Avoid photographing an overlay at opacity 0.
@@ -291,7 +330,8 @@ try {
   assert(await desktop.locator('button[aria-pressed]').count() >= 5);
   assert(await desktop.locator('#announcer[aria-live="polite"]').count() === 1);
   assert.equal(errors.length, 0, errors.join('\n'));
-  console.log('PASS accessible toggle semantics and zero page/console errors');
+  assert.equal(externalRequests.length, 0, externalRequests.join('\n'));
+  console.log('PASS accessible toggle semantics, zero page errors, and zero external network requests');
   console.log('SMOKE RESULT: ALL CHECKS PASSED');
 } finally {
   if (browser) await browser.close();
