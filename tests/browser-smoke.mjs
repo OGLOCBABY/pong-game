@@ -250,6 +250,7 @@ try {
 
   await mobile.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal((await snapshot(mobile)).effects, false, 'OS reduced-motion preference must suppress effects');
+  await mobile.locator('#motion-button[aria-pressed="false"]').waitFor({ state: 'visible', timeout: 5000 });
   assert.equal(await mobile.locator('#motion-button').getAttribute('aria-pressed'), 'false');
   assert.equal(await mobile.locator('#motion-button').isDisabled(), true);
   console.log('PASS OS reduced-motion preference and accurate disabled controls');
