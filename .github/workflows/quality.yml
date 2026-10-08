@@ -1,0 +1,40 @@
+name: STRIKELINE quality gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  physics-and-browser:
+    name: Engine tests + real Chromium playthrough
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out only this repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependency
+        run: npm install --no-audit --no-fund
+      - name: Test deterministic physics and simulated play
+        run: npm test
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Play the game in desktop and mobile Chromium
+        run: npm run smoke
+      - name: Preserve visual self-review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strikeline-screenshots
+          path: test-results/*.png
+          retention-days: 14
+          if-no-files-found: ignore
