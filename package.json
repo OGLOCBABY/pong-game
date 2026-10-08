@@ -10,7 +10,8 @@
     "check": "npm run test && npm run smoke"
   },
   "devDependencies": {
-    "playwright": "1.56.1"
+    "playwright": "1.56.1",
+    "axe-core": "4.14.0"
   },
   "engines": {
     "node": ">=20"
