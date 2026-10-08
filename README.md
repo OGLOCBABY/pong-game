@@ -12,7 +12,13 @@
 
 Visit **http://localhost:4173**. You can also use `npx serve .` if Node is installed. ES modules should be loaded over HTTP(S); opening `index.html` directly with a `file://` URL may be blocked by the browser.
 
-To publish on this repository's own GitHub Pages site, go to **Settings → Pages → Build and deployment → Source → GitHub Actions**. The included `STRIKELINE Pages` workflow automatically publishes the minimal static runtime after the quality workflow passes, or can be run manually from Actions. **Pages is not enabled until the repository owner chooses that source**; no live URL should be assumed before a successful deployment. All game assets use relative URLs, so a GitHub Pages project path works.
+This repository's GitHub Pages is configured to deploy through GitHub Actions. The existing `STRIKELINE Pages` workflow publishes only after the repository's dual-game quality gate passes. It serves Pong at **https://oglocbaby.github.io/pong-game/** and, after the Mission 02 release, serves the separate game at **https://oglocbaby.github.io/pong-game/metal-slug-2/**. A successful workflow status alone is not proof that an individual game is playable: the deployment job now also checks both real public HTTPS pages through Chromium and exercises start, movement, shooting and pause. All runtime asset URLs remain relative.
+
+## Second playable game
+
+The same repository also contains **[RUINS OF THE SECOND SUN — Mission 02](./metal-slug-2/index.html)**, an independently illustrated browser run-and-gun homage to the dramatic structure of *Metal Slug 2* Mission 2 (1998). The existing Pong game is unchanged.
+
+Once [GitHub Pages](https://oglocbaby.github.io/pong-game/) finishes the new QA-gated release, open the separate game directly at **https://oglocbaby.github.io/pong-game/metal-slug-2/**. The release must pass actual public-browser verification before this URL can be claimed functional. See [Mission 02's controls and QA](./metal-slug-2/README.md).
 
 ## Inside the arena
 

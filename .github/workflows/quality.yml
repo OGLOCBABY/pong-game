@@ -26,15 +26,28 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Test deterministic physics and simulated play
         run: npm test
+      - name: Test Metal Slug 2 Mission 2 engine and complete vertical campaign
+        run: npm --prefix metal-slug-2 test
       - name: Install Chromium, Firefox and WebKit
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Play the game in desktop and mobile browsers
         run: npm run smoke
+      - name: Browser-play the full Mission 2 via real keyboard, including Aeshi Nero
+        run: npm --prefix metal-slug-2 run smoke
       - name: Preserve visual self-review evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: strikeline-screenshots
           path: test-results/*.png
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Preserve Mission 2 stage/boss/victory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mission2-playthrough-screenshots
+          path: metal-slug-2/test-results/*.png
           retention-days: 14
           if-no-files-found: ignore

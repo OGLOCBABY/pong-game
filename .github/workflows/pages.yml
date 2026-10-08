@@ -5,7 +5,6 @@ on:
     workflows: ["STRIKELINE quality gate"]
     types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,10 +15,11 @@ jobs:
   deploy:
     name: Publish only after a successful QA run
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -44,14 +44,19 @@ jobs:
         if: steps.pages.outputs.enabled == 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
       - name: Assemble dependency-free static site
         if: steps.pages.outputs.enabled == 'true'
         run: |
-          mkdir -p site/src
+          mkdir -p site/src site/metal-slug-2
           cp index.html styles.css favicon.svg site/
           cp src/*.js site/src/
+          cp metal-slug-2/index.html metal-slug-2/style.css site/metal-slug-2/
+          cp metal-slug-2/main.js metal-slug-2/engine.js metal-slug-2/level.js site/metal-slug-2/
+          cp metal-slug-2/art.js metal-slug-2/audio.js site/metal-slug-2/
+          test -s site/metal-slug-2/index.html
+          test -s site/metal-slug-2/engine.js
           touch site/.nojekyll
       - name: Prepare GitHub Pages
         if: steps.pages.outputs.enabled == 'true'
@@ -65,3 +70,27 @@ jobs:
         if: steps.pages.outputs.enabled == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Assert release requires actual Pages deployment
+        if: steps.pages.outputs.enabled != 'true'
+        run: |
+          echo "GitHub Pages source is disabled: cannot claim a successful release."
+          exit 1
+      - name: Install browser verification tooling
+        if: steps.pages.outputs.enabled == 'true'
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify public HTTPS loads both games and genuine player controls
+        if: steps.pages.outputs.enabled == 'true'
+        env:
+          LIVE_BASE: ${{ steps.deployment.outputs.page_url }}
+        run: node metal-slug-2/tests/live-smoke.mjs
+      - name: Save deployed site smoke screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-pages-browser-verification
+          path: metal-slug-2/test-results/public-live-*.png
+          retention-days: 14
+          if-no-files-found: ignore

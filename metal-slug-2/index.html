@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#130f17">
+<meta name="description" content="RUINS OF THE SECOND SUN: an original arcade run-and-gun through an Egyptian tomb. Four acts, a giant mechanical boss, and a single mission to survive.">
+<title>RUINS OF THE SECOND SUN — Mission 02</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./main.js"></script>
+</head>
+<body>
+<div class="machine">
+  <header class="masthead">
+    <a class="back" href="../index.html" aria-label="Return to original Pong arcade"><span class="back-arrow">←</span><span>BACK TO ARCADE</span></a>
+    <div class="brand"><span class="brand-star">✳</span><span>RUINS <small>OF THE</small> SECOND SUN</span><b class="brand-code">// 02</b></div>
+    <div class="masthead-end"><span class="live-dot"></span> ARCADE / SINGLE PLAYER</div>
+  </header>
+  <main>
+    <div class="chapter-bar"><span><b>CAMPAIGN 02</b> <span class="divider-slash">/</span> VALLEY OF THE PHARAOHS</span><span class="chapter-right">AN ORIGINAL 16-BIT-INSPIRED RUN &amp; GUN <span class="chapter-star">✦</span> 2026</span></div>
+    <section class="screen-shell" aria-label="Playable side-scrolling arcade action game">
+      <div class="screen-top"><div class="lightset"><i></i><i></i><i></i></div><span>THE ANCIENT WORLD NEVER DIES.</span><div class="lightset end"><i></i><i></i><i></i></div></div>
+      <div class="screen" id="screen">
+        <canvas id="game" width="960" height="540" tabindex="0" role="img" aria-label="Arcade action game: move with A/D, jump with Space, fire with J, throw grenades with K. Use the control instructions below."></canvas>
+        <div class="game-hud" id="hud" aria-live="off">
+          <div class="hud-stat hud-score"><small>SCORE</small><strong id="score">0000000</strong></div>
+          <div class="hud-stat hud-lives"><small>LIVES</small><strong id="lives">♥ ♥ ♥</strong></div>
+          <div class="hud-stat hud-weapon"><small>ARMS</small><strong id="weapon">∞ <span>PISTOL</span></strong></div>
+          <div class="hud-stat hud-bombs"><small>BOMBS</small><strong id="bombs">08</strong></div>
+          <div class="hud-stat hud-time"><small>TIME</small><strong id="timer">00:00</strong></div>
+        </div>
+        <div class="boss-hud" id="boss-hud" hidden><span><b>✣</b> AESHI NERO</span><div class="boss-meter"><div id="boss-meter-fill"></div></div><span class="boss-percent" id="boss-hp">100%</span></div>
+        <div class="stage-corner"><span id="act-num">ACT I</span><strong id="act-name">DUNES AT DUSK</strong></div>
+        <div class="event-banner" id="event-banner" aria-live="polite"></div>
+        <div class="overlay" id="overlay">
+          <div class="overlay-inner">
+            <p class="eyebrow" id="overlay-eyebrow"><span>✳</span> THE ARCHIVES / VOL. II</p>
+            <div class="title-rule"></div>
+            <h1 id="overlay-title">RUINS <span>OF THE</span><br>SECOND <em>SUN</em></h1>
+            <p id="overlay-copy" class="overlay-copy">Beneath the sand, something ancient is waking.<br>One soldier. Four acts. No turning back.</p>
+            <div class="button-set"><button type="button" id="play" class="start-button"><span id="play-label">START MISSION</span><b>↗</b></button><button type="button" id="help" class="help-button">HOW TO PLAY <span>?</span></button></div>
+            <p class="start-hint">PRESS <kbd>ENTER</kbd> TO DEPLOY <span>—</span> HEADPHONES RECOMMENDED</p>
+          </div>
+        </div>
+        <div class="touch-controls" id="touch-controls" aria-label="On-screen game controls">
+          <div class="touch-left"><button type="button" data-control="left" aria-label="Move left">◀</button><button type="button" data-control="right" aria-label="Move right">▶</button><button type="button" data-control="up" aria-label="Aim up">▲</button><button type="button" data-control="down" aria-label="Aim down and crouch">▼</button></div>
+          <div class="touch-right"><button type="button" data-control="interact" aria-label="Mount or dismount Slugnoid">E</button><button type="button" data-control="grenade" class="grenade-button" aria-label="Throw grenade">B</button><button type="button" data-control="jump" class="jump-button" aria-label="Jump">A</button><button type="button" data-control="fire" class="fire-button" aria-label="Fire weapon">FIRE</button></div>
+        </div>
+      </div>
+      <div class="screen-base"><div class="base-left"><span class="base-id">NO. 002 / FIELD OPERATIONS</span><span class="tiny-divider"></span><span class="base-status"><i></i> <span id="game-state">STANDING BY</span></span></div><div class="base-actions"><button id="mode" type="button" aria-pressed="false" title="Toggle arcade and practice damage rules">MODE · ARCADE</button><button id="mute" type="button" aria-pressed="false" title="Toggle sound">SOUND <b id="mute-value">ON</b></button><button id="pause" type="button" title="Pause game">Ⅱ <span id="pause-label">PAUSE</span></button><button id="restart" type="button" title="Restart mission">↻ RESTART</button></div></div>
+    </section>
+    <div class="bottom-grid">
+      <section class="briefing"><div class="section-overline"><span class="accent-square"></span> YOUR MISSION <span class="faint">/ FIELD BRIEFING</span></div><h2>THE DEAD<br><em>DON'T STAY DEAD.</em></h2><p>Break through the desert frontier. Descend into the cursed pyramid. Rescue the lost explorers. Climb the ancient ruins. Then bring down the machine that guards the final chamber.</p><div class="briefing-footer"><span>6 SCENES</span><span>VERTICAL TOWER</span><span>1 FINAL BOSS</span></div></section>
+      <section class="controls-card" aria-labelledby="controls-title"><div class="section-overline"><span class="accent-square"></span> SYSTEM / CONTROLS</div><h2 id="controls-title">KNOW YOUR WEAPONS.</h2><div class="control-lines"><div><span>MOVE / AIM</span><span><kbd>A</kbd><kbd>D</kbd> <kbd>W</kbd><kbd>S</kbd><i>or arrows</i></span></div><div><span>JUMP</span><span><kbd>SPACE</kbd></span></div><div><span>FIRE / GRENADES</span><span><kbd>J</kbd> / <kbd>K</kbd></span></div><div><span>PAUSE / MUTE</span><span><kbd>P</kbd> / <kbd>M</kbd></span></div></div><p>Touch controls appear on smaller screens. Hold DOWN + FIRE to shoot at the tower boss below. Press E to enter/leave your Slugnoid. Green antidotes reverse the mummy curse. Arcade mode is one-hit; Practice mode allows three hits.</p></section>
+    </div>
+    <footer><span>ORIGINAL PIXEL-INSPIRED ARTWORK. NO THIRD-PARTY GAME ASSETS.</span><span>BUILT INSIDE <a href="https://github.com/OGLOCBABY/pong-game/tree/main/metal-slug-2">PONG-GAME</a> · MISSION FILE 02</span></footer>
+  </main>
+</div>
+<p id="announcement" class="sr-only" aria-live="polite"></p>
+</body>
+</html>
