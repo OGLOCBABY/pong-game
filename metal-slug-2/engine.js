@@ -32,10 +32,19 @@ const PICKUP_HEIGHTS = {2150:330,2390:278,3430:408,3730:286,4420:292,4720:413};
 const PHASES = ['DUNES AT DUSK','BENEATH THE STONE','THE RISING TOMB','IRON COLOSSUS'];
 export function actAt(x) {return x < 1650 ? 0 : x < 3480 ? 1 : x < BOSS_START ? 2 : 3;}
 export function phaseTitle(x) {return PHASES[actAt(x)];}
-export function sweptHit(a, b, radius=0) {
-  const cx = clamp(a.x, b.x-radius, b.x+b.w+radius);
-  const cy = clamp(a.y, b.y-radius, b.y+b.h+radius);
-  return (a.x-cx)**2+(a.y-cy)**2 < (a.r+radius)**2;
+/** Continuous point/segment against radius-expanded target AABB. */
+export function sweptHit(shot,box,extraRadius=0) {
+  const r=(shot.r||0)+extraRadius,x0=shot.px??shot.x,y0=shot.py??shot.y;
+  const dx=shot.x-x0,dy=shot.y-y0;
+  const minX=box.x-r,maxX=box.x+box.w+r,minY=box.y-r,maxY=box.y+box.h+r;
+  let entry=0,exit=1;
+  for(const [p,d,lo,hi] of [[x0,dx,minX,maxX],[y0,dy,minY,maxY]]){
+    if(Math.abs(d)<1e-10){if(p<lo||p>hi)return false;continue;}
+    const a=(lo-p)/d,b=(hi-p)/d;
+    entry=Math.max(entry,Math.min(a,b));exit=Math.min(exit,Math.max(a,b));
+    if(entry>exit)return false;
+  }
+  return exit>=0&&entry<=1;
 }
 
 export class RuinsGame {
@@ -134,7 +143,7 @@ export class RuinsGame {
     this.addScore(pts,item.x,item.y-12);this.burst(item.x,item.y,item.type==='antidote'?'#84ffc7':'#ffe8a4',20,170);this.emit('pickup',item.x,item.y,{item:item.type});}
   damageEnemy(e,value,x,y){if(e.dead)return;e.hp-=value;e.hit=.13;this.burst(x,y,'#ffc26f',6,90);this.emit('hit',x,y);
     if(e.hp<=0){e.dead=true;this.kills++;this.combo++;this.comboTimer=4;const pts=e.type==='spawner'?800: e.type==='turret'?500:200;this.addScore(pts+Math.min(10,this.combo)*30,e.x,e.y);this.burst(e.x+e.w/2,e.y+e.h/2,e.type==='spawner'?'#b9eece':'#ffc27b',21,215);this.emit('kill',e.x,e.y,{enemy:e.type});if(e.type==='spawner')this.pickups.push({id:1000+this.pickups.length,x:e.x+25,y:e.y+e.h-40,type:'antidote',taken:false,phase:0});if(e.type==='barrel'){this.gateOpen=true;this.emit('gateopen',e.x,e.y);}}}
-  damageBoss(value,x,y){const b=this.boss;if(!b.active||b.dead)return;b.hp=Math.max(0,b.hp-value);b.phase=b.hp<b.maxHp*.35?2:b.hp<b.maxHp*.7?1:0;this.burst(x,y,'#f7e49b',8,180);this.emit('bosshit',x,y);
+  damageBoss(value,x,y){const b=this.boss;if(!b.active||b.dead||b.entry<.85)return;b.hp=Math.max(0,b.hp-value);b.phase=b.hp<b.maxHp*.35?2:b.hp<b.maxHp*.7?1:0;this.burst(x,y,'#f7e49b',8,180);this.emit('bosshit',x,y);
     if(b.hp===0){b.dead=true;this.bossGate=false;this.bullets=this.bullets.filter(v=>v.owner==='player');this.addScore(15000,b.x,b.y);this.burst(b.x-25,b.y,'#ffe9a0',100,350);this.phase='won';this.emit('won');}}
   explode(g){this.burst(g.x,g.y,'#ffb460',45,260);this.emit('explosion',g.x,g.y);const rad=107;
     for(const e of this.enemies){if(e.dead)continue;const dx=e.x+e.w/2-g.x,dy=e.y+e.h/2-g.y;if(dx*dx+dy*dy<rad*rad)this.damageEnemy(e,5,g.x,g.y);}
@@ -176,6 +185,7 @@ export class RuinsGame {
   }
   updateEnemy(e,dt){const p=this.player;e.t+=dt;e.hit=Math.max(0,e.hit-dt);e.shoot-=dt;
     const dx=p.x-e.x;const near=Math.abs(dx)<660;e.dir=dx>=0?1:-1;
+    if(e.type==='barrel')return;
     if(e.type==='rifle'){if(near&&Math.abs(dx)>125)e.x+=e.dir*30*dt;
       if(near&&e.shoot<=0){e.shoot=1.65+this.random()*.9;this.enemyShot(e.x+e.w/2,e.y+18,e.dir*400,0,'bullet');}}
     if(e.type==='mummy'){if(near&&Math.abs(dx)>42)e.x+=e.dir*(e.attack>0?6:36)*dt;
@@ -185,19 +195,56 @@ export class RuinsGame {
       if(Math.abs(dx)<60&&e.shoot<=0){e.shoot=1.5;this.enemyShot(e.x,e.y+10,e.dir*110,135,'bullet');}}
     if(e.type==='turret'&&near&&e.shoot<=0){e.shoot=1.9+this.random()*.5;this.enemyShot(e.x+12,e.y+8,e.dir*330,-90,'bullet');this.enemyShot(e.x+12,e.y+8,e.dir*350,-10,'bullet');}
     if(e.type==='spawner'&&near){e.spawn-=dt;if(e.spawn<=0){e.spawn=3.6;const local=this.enemies.filter(m=>!m.dead&&m.type==='mummy'&&Math.abs(m.x-e.x)<220).length;if(local<3)this.spawn('mummy',e.x-35*e.dir);this.emit('spawn',e.x,e.y);}}
-    if(e.type!=='bat'&&Math.abs(dx)<25&&Math.abs((p.y+p.h/2)-(e.y+e.h/2))<37&&e.t>.3)this.damagePlayer(1,e.type==='mummy'?'curse':'bullet');
+    if(e.type!=='bat'&&e.type!=='barrel'&&Math.abs(dx)<25&&Math.abs((p.y+p.h/2)-(e.y+e.h/2))<37&&e.t>.3)this.damagePlayer(1,e.type==='mummy'?'curse':'bullet');
     if(e.type==='bat'&&overlap(e,p))this.damagePlayer(1);
   }
-  enemyShot(x,y,vx,vy,kind){const offX=vx>0?16:-16;this.bullets.push({x:x+offX,y,px:x,py:y,vx,vy,r:kind==='curse'?9:5,ttl:kind==='curse'?4:2.5,owner:'enemy',damage:1,color:kind==='curse'?'#90faab':'#ff8e61',kind});this.emit('enemyshoot',x,y);}
-  updateBoss(dt){const b=this.boss;if(!b.active||b.dead)return;
-    b.t+=dt;b.entry=clamp(b.entry+dt*.6,0,1);b.y=335+Math.sin(b.t*1.5)*27;
+  enemyShot(x,y,vx,vy,kind){const offX=vx>0?16:-16;this.bullets.push({x:x+offX,y,px:x,py:y,vx,vy,r:kind==='curse'?9:kind==='electric'?12:kind==='missile'?8:5,ttl:kind==='curse'?4:3.5,owner:'enemy',damage:1,color:kind==='curse'?'#90faab':kind==='electric'?'#a2deff':kind==='missile'?'#ffce74':'#ff8e61',kind});this.emit('enemyshoot',x,y);}
+  updateBoss(dt){
+    const b=this.boss;if(!b.active||b.dead)return;
+    b.t+=dt;b.entry=clamp(b.entry+dt/1.6,0,1);
+    b.x=clamp(b.x+clamp((this.player.x+85-b.x)*dt*.68,-135*dt,135*dt),5800,6250);
+    b.y=405-760*b.entry+Math.sin(b.t*1.8)*10;
+    if(b.entry<1)return;
     b.attackT-=dt;
-    if(b.telegraph>0){b.telegraph-=dt;if(b.telegraph<=0){const player=this.player;
-      if(b.phase===2){for(let i=-2;i<=2;i++)this.enemyShot(b.x-100,b.y+17,-300,i*90,'bullet');}
-      else{const vx=(player.x-(b.x-105)),vy=player.y+20-(b.y+10),l=Math.max(1,Math.hypot(vx,vy));this.enemyShot(b.x-108,b.y+12,vx/l*340,vy/l*340,'bullet');if(b.phase>0)this.enemyShot(b.x-110,b.y+25,-300,90,'bullet');}
-      this.emit('bossattack',b.x-100,b.y);}}
-    if(b.attackT<=0){b.attackT=[2.55,2.0,1.6][b.phase];b.telegraph=.52;this.emit('warning',b.x-80,b.y);}
-    if(this.player.x>b.x-145&&Math.abs(this.player.y+this.player.h/2-b.y)<95)this.damagePlayer(1);
+    if(b.telegraph>0){
+      b.telegraph-=dt;
+      if(b.telegraph<=0){
+        const p=this.player,mode=b.mode;
+        if(mode==='laser'){
+          const beamX=clamp(p.x+p.w/2,5820,6220);
+          this.hazards.push({kind:'laser',x:beamX,y:b.y-720,w:102,h:730,life:.55});
+          b.charges++;this.emit('laser',beamX,b.y-150);
+        }else if(mode==='electric'){
+          for(const d of [-1,1])this.enemyShot(b.x+d*150,b.y-65,-d*140,-330,'electric');
+          this.emit('bossattack',b.x,b.y,{mode});
+        }else if(mode==='lunge'){
+          this.hazards.push({kind:'lunge',x:b.x-90,y:b.y-340,w:170,h:340,life:.35});
+          this.emit('bossattack',b.x,b.y,{mode});
+        }else{
+          for(let k=0;k<3;k++){
+            const sx=b.x-65+(k-1)*53,sy=b.y-48;
+            const dx=p.x-sx,dy=p.y-sy,l=Math.max(1,Math.hypot(dx,dy));
+            this.enemyShot(sx,sy,dx/l*(205+k*32),dy/l*(205+k*32),'missile');
+          }
+          this.emit('bossattack',b.x,b.y,{mode:'missile'});
+        }
+      }
+    }
+    if(b.attackT<=0&&b.telegraph<=0){
+      b.counter++;
+      const sequence=this.vehicle.mounted?['electric','laser','lunge','electric','laser']:['missile','laser','lunge','missile','laser'];
+      b.mode=sequence[(b.counter-1)%sequence.length];
+      b.telegraph=b.mode==='laser'?.88:b.mode==='lunge'?.55:.52;
+      b.attackT=[3.1,2.6,2.3][b.phase]+b.telegraph;
+      this.emit('warning',b.x-80,b.y,{mode:b.mode});
+    }
+    for(const h of this.hazards){
+      if(h.life<=0)continue;
+      if(h.kind==='laser'&&Math.abs(this.player.x+this.player.w/2-h.x)<h.w/2&&this.player.y+this.player.h>h.y)
+        this.damagePlayer(1);
+      if(h.kind==='lunge'&&overlap(this.player,{x:h.x,y:h.y,w:h.w,h:h.h}))this.damagePlayer(1);
+    }
+    if(this.player.x>b.x-95&&this.player.x<b.x+80&&this.player.y+this.player.h>b.y-70)this.damagePlayer(1);
   }
   updateBullets(dt){const p=this.player;for(const b of this.bullets){b.px=b.x;b.py=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;b.ttl-=dt;
     if(b.ttl<=0||b.y<this.camera.y-180||b.y>this.camera.y+HEIGHT+180){b.ttl=0;continue;}
@@ -208,6 +255,15 @@ export class RuinsGame {
       if(b.ttl>0&&this.boss.active&&!this.boss.dead){const box={x:this.boss.x-120,y:this.boss.y-85,w:160,h:180};if(sweptHit(b,box)) {this.damageBoss(b.damage,b.x,b.y);b.ttl=0;}}
     }else if(p.invuln<=0&&sweptHit(b,p,1)){this.damagePlayer(1,b.kind==='curse'?'curse':'bullet');b.ttl=0;}
   }
+    for(const shot of this.bullets){
+      if(shot.owner!=='player'||shot.ttl<=0)continue;
+      for(const missile of this.bullets){
+        if(missile.kind!=='missile'||missile.ttl<=0)continue;
+        if(Math.hypot(shot.x-missile.x,shot.y-missile.y)<(shot.r+missile.r+14)){
+          shot.ttl=0;missile.ttl=0;this.burst(missile.x,missile.y,'#ffc66c',14,140);this.emit('intercept',missile.x,missile.y);break;
+        }
+      }
+    }
     this.bullets=this.bullets.filter(b=>b.ttl>0&&b.x>=this.camera.x-80&&b.x<this.camera.x+WIDTH+250);
   }
   updateGrenades(dt){for(const g of this.grenades){g.t+=dt;g.vy+=G*dt;g.x+=g.vx*dt;g.y+=g.vy*dt;if(g.y>=FLOOR-9){g.y=FLOOR-9;g.vy=-Math.abs(g.vy)*.45;g.vx*=.78;}if(g.t>=g.fuse){g.dead=true;this.explode(g);}}this.grenades=this.grenades.filter(g=>!g.dead);}
@@ -216,6 +272,7 @@ export class RuinsGame {
     for(const spawn of this.spawns){if(!spawn.activated&&this.player.x>spawn.x-630){spawn.activated=true;this.spawn(spawn.type,spawn.x);}}
     for(const e of this.enemies)if(!e.dead&&e.x>this.player.x-850&&e.x<this.player.x+950)this.updateEnemy(e,dt);
     this.updateBoss(dt);this.updateBullets(dt);this.updateGrenades(dt);
+    for(const h of this.hazards)h.life-=dt;this.hazards=this.hazards.filter(h=>h.life>0);
     for(const item of this.pickups){if(item.taken)continue;item.phase+=dt*3;const rect={x:item.x-17,y:item.y-19,w:34,h:38};if(overlap(this.player,rect))this.collect(item);}
     for(const q of this.particles){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=480*dt;q.life-=dt;}
     this.particles=this.particles.filter(q=>q.life>0);
