@@ -6,8 +6,9 @@ export class ArcadeAudio {
   }
 
   unlock() {
-    if (!this.enabled || this.context) {
-      if (this.context?.state === 'suspended') this.context.resume().catch(() => {});
+    if (!this.enabled) return;
+    if (this.context) {
+      if (this.context.state === 'suspended') this.context.resume().catch(() => {});
       return;
     }
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
