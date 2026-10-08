@@ -223,7 +223,7 @@ export class RuinsGame {
     const b=this.boss;if(!b.active||b.dead)return;
     b.t+=dt;b.entry=clamp(b.entry+dt/1.6,0,1);
     b.x=clamp(b.x+clamp((this.player.x+85-b.x)*dt*.68,-135*dt,135*dt),5800,6250);
-    b.y=405-760*b.entry+Math.sin(b.t*1.8)*10;
+    b.y=405-820*b.entry+Math.sin(b.t*1.8)*10;
     if(b.entry<1)return;
     b.attackT-=dt;
     if(b.telegraph>0){
