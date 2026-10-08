@@ -16,7 +16,7 @@ To publish the game to the web, go to this repository's **Settings → Pages →
 
 ## Inside the arena
 
-- **Solo** — adjustable CPU: **Rookie**, **Pro**, **Legend**. The AI predicts bank shots but is constrained by reaction time, movement speed and inaccuracy.
+- **Solo** — adjustable CPU: **Rookie**, **Pro**, **Legend**. The AI predicts bank shots but is constrained by reaction time, movement speed, imperfect aiming and additional pressure in long rallies.
 - **2 Players** — challenge a friend on one keyboard or with two touch pointers.
 - **Real Pong physics** — continuous paddle-edge collisions, angled returns, motion-driven spin, acceleration on rallies and deterministic match simulation.
 - **Clear win condition** — first to **7 points**, win by **2**; sudden death at **11**.
@@ -50,11 +50,12 @@ On touchscreens, tap and hold at your preferred paddle height; drag to follow th
 | `src/main.js` | Browser UI, inputs, Canvas painting, match state and visual effects |
 | `src/audio.js` | Browser-native Web Audio tones; nothing downloaded |
 | `tests/engine.test.mjs` | Node physics, controls, scoring and autonomous match tests |
+| `tests/ai-balance.test.mjs` | Long-running simulated matches to keep Pro beatable and Legend demanding |
 | `tests/browser-smoke.mjs` | Chromium desktop/mobile tests with scripted live gameplay and screenshots |
 | `.github/workflows/quality.yml` | Continuous quality checks on pushes and PRs |
 | `research.md`, `plan.md`, `qa.md` | Audited baseline, staged implementation, validation and limitations |
 
-**The game has zero production dependencies.** Dev-only Playwright is pinned for reproducible browser verification. Fonts use local/system fallbacks, artwork is rendered by CSS/Canvas and all audio is synthesized.
+**The game has zero production dependencies.** Dev-only Playwright and axe-core are pinned for reproducible browser and accessibility verification. Fonts use local/system fallbacks, artwork is rendered by CSS/Canvas and all audio is synthesized.
 
 ## Test the game
 
@@ -68,7 +69,7 @@ Node.js 20+ required for tests:
 
 `npm run smoke`
 
-On Linux CI, use `npx playwright install --with-deps chromium` to provision Chromium and system dependencies. Smoke tests save screenshots in `test-results/` within the repository workspace. CI uploads them as a GitHub Actions artifact. The smoke test starts and stops its own temporary HTTP server, tests interactive desktop and mobile flows, and plays a time-limited scripted match.
+For the full cross-browser suite, install `npx playwright install --with-deps chromium firefox webkit` on Linux or `npx playwright install chromium firefox webkit` on desktop. The automated suite runs **18 engine/balance tests** and uses real Chromium, Firefox, and WebKit, including keyboard, simultaneous multitouch, a complete match and rematch, narrow phone layouts and **axe-core WCAG 2.1 AA** checks. Screenshots are saved to `test-results/` within the repository and uploaded as a GitHub Actions artifact.
 
 See **[GitHub Actions](https://github.com/OGLOCBABY/pong-game/actions/workflows/quality.yml)** for actual run results. See [qa.md](qa.md) for evidence-based scores and any limitations. A pass is not inferred from the existence of a workflow file.
 
