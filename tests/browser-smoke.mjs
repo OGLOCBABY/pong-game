@@ -49,6 +49,10 @@ const url = 'http://127.0.0.1:' + server.address().port + '/';
 let browser;
 const errors = [];
 const snapshot = (page) => page.evaluate(() => window.__STRIKELINE_DIAGNOSTICS__.snapshot());
+const waitBoot = (page) => page.waitForFunction(
+  () => typeof window.__STRIKELINE_DIAGNOSTICS__?.snapshot === 'function',
+  null, { timeout: 20000 },
+);
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
 async function auditAccessibility(page, label) {
   await page.addScriptTag({ path: axeScript });
@@ -78,6 +82,7 @@ try {
   desktop.on('console', (message) => { if (message.type() === 'error') errors.push('desktop console: ' + message.text()); });
 
   const response = await desktop.goto(url, { waitUntil: 'networkidle' });
+  await waitBoot(desktop);
   assert.equal(response.status(), 200);
   assert.match(await desktop.title(), /STRIKELINE/);
   assert.equal(await desktop.locator('#game-canvas').count(), 1);
@@ -201,6 +206,7 @@ try {
   mobile.on('pageerror', (error) => errors.push('mobile: ' + error.message));
   mobile.on('console', (message) => { if (message.type() === 'error') errors.push('mobile console: ' + message.text()); });
   await mobile.goto(url, { waitUntil: 'networkidle' });
+  await waitBoot(mobile);
   const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(overflow < 3, 'mobile page must not have horizontal scrolling: ' + overflow);
   await mobile.screenshot({ path: resolve(output, '04-mobile-home.png'), fullPage: true });
@@ -250,6 +256,7 @@ try {
   const tiny = await tinyContext.newPage();
   tiny.on('pageerror', (error) => errors.push('tiny: ' + error.message));
   await tiny.goto(url, { waitUntil: 'networkidle' });
+  await waitBoot(tiny);
   const tinyOverflow = await tiny.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(tinyOverflow < 3, '320px viewport must not scroll horizontally: ' + tinyOverflow);
   await tiny.screenshot({ path: resolve(output, '06-small-phone.png'), fullPage: true });
@@ -263,6 +270,7 @@ try {
       const other = await alternate.newPage({ viewport: { width: 1280, height: 800 } });
       other.on('pageerror', (error) => errors.push(engineName + ': ' + error.message));
       await other.goto(url, { waitUntil: 'networkidle' });
+      await waitBoot(other);
       assert.equal((await snapshot(other)).phase, 'idle', engineName);
       await other.locator('#primary-action').click();
       await waitPlaying(other);
