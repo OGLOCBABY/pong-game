@@ -186,6 +186,8 @@ function startOrResume() {
 
 function resetGame() {
   game.reset();
+  game.start();
+  audio.unlock();
   keysDown.clear();
   touches.clear();
   particles = [];
@@ -194,7 +196,8 @@ function resetGame() {
   accumulator = 0;
   applyInputs();
   syncHUD();
-  announce('Match reset. Press start to play.');
+  announce('Fresh match starting. Get ready for the next serve.');
+  elements.canvas.focus({ preventScroll: true });
 }
 
 function togglePause() {
