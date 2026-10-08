@@ -224,14 +224,39 @@ export class ArtDirector {
  constructor(canvas){this.canvas=canvas;this.c=canvas.getContext('2d',{alpha:false});this.t=0;this.shake=0;this.flash=0;this.quality=1;this.resize();}
  resize(){const dpi=Math.min(window.devicePixelRatio||1,2);const bounds=this.canvas.getBoundingClientRect();const area=bounds.width>0?bounds.width:960;this.quality=area>1400?Math.min(2,dpi):dpi;this.canvas.width=Math.round(WIDTH*this.quality);this.canvas.height=Math.round(HEIGHT*this.quality);this.c.imageSmoothingEnabled=false;}
  react(events){for(const e of events){if(e.type==='explosion'){this.shake=Math.max(this.shake,14);this.flash=.12;}if(e.type==='hurt')this.shake=Math.max(this.shake,7);if(e.type==='kill')this.shake=Math.max(this.shake,3);if(e.type==='won'){this.shake=17;this.flash=.6;}if(e.type==='boss')this.shake=14;}}
- render(g,dt=0){this.t+=Math.max(0,dt);this.shake*=.86;this.flash=Math.max(0,this.flash-dt);const c=this.c,t=this.t,cam=g.camera;c.setTransform(this.quality,0,0,this.quality,0,0);c.clearRect(0,0,WIDTH,HEIGHT);c.save();const offsetX=this.shake?(rnd(t*340)*2-1)*this.shake:0,offsetY=this.shake?(rnd(t*570)*2-1)*this.shake*.5:0;c.translate(offsetX,offsetY);
-  environment(c,cam,t);for(const p of g.platforms){let x=p.x-cam;if(x>WIDTH+30||x+p.w<-30)continue;platform(c,x,p.y,p.w,actAt(p.x));}
-  drops(c,g,cam,t);
-  for(const secret of g.secrets){if(secret.triggered)continue;const sx=secret.x-cam;if(sx>-20&&sx<WIDTH+20){if(secret.kind==='lamp'){glow(c,sx,secret.y,23,'#ffc87925');ellipse(c,sx,secret.y+6,10,5,'#dcad63');rect(c,sx-5,secret.y-4,11,9,'#efc987');rect(c,sx+6,secret.y-1,9,3,'#e6b16f');}else{ellipse(c,sx,secret.y,4,3,'#e3d89b');}}}
-  for(const e of g.enemies)enemySprite(c,e,cam,t);
-  bigBoss(c,g.boss,cam,t);
-  hero(c,g.player,g.player.x-cam,g.player.y,t,g);
-  effects(c,g,cam);overhead(c,g,t);
-  c.restore();if(this.flash>0){rect(c,0,0,WIDTH,HEIGHT,`rgba(255,225,175,${Math.min(.4,this.flash*.7)})`);}
- }
+ render(g,dt=0){
+    this.t+=Math.max(0,dt);this.shake*=.86;this.flash=Math.max(0,this.flash-dt);
+    const c=this.c,t=this.t,cam=g.camera,cx=cam.x;
+    c.setTransform(this.quality,0,0,this.quality,0,0);
+    c.clearRect(0,0,WIDTH,HEIGHT);c.save();
+    const offsetX=this.shake?(rnd(t*340)*2-1)*this.shake:0;
+    const offsetY=this.shake?(rnd(t*570)*2-1)*this.shake*.5:0;
+    c.translate(offsetX,offsetY);
+    if(g.player.x>=3480||cx>=3450)towerBackdrop(c,cx,cam.y,t,g);
+    else environment(c,cx,t);
+    c.save();c.translate(0,-cam.y);
+    for(const p of g.platforms){
+      const x=p.x-cx;if(x>WIDTH+30||x+p.w<-30)continue;
+      platform(c,x,p.y,p.w,actAt(p.x));
+    }
+    drops(c,g,cx,t);
+    for(const secret of g.secrets){
+      if(secret.triggered)continue;const sx=secret.x-cx;
+      if(sx>-20&&sx<WIDTH+20){
+        if(secret.kind==='lamp'){
+          glow(c,sx,secret.y,23,'#ffc87925');ellipse(c,sx,secret.y+6,10,5,'#dcad63');
+          rect(c,sx-5,secret.y-4,11,9,'#efc987');rect(c,sx+6,secret.y-1,9,3,'#e6b16f');
+        }else ellipse(c,sx,secret.y,4,3,'#e3d89b');
+      }
+    }
+    for(const e of g.enemies)enemySprite(c,e,cx,t);
+    bigBoss(c,g.boss,cx,t);renderHazards(c,g,cx);
+    if(g.vehicle?.mounted){
+      drawSlugnoid(c,g.player,g.player.x-cx,g.player.y,t,g.vehicle);
+      hero(c,{...g.player,weapon:'pistol'},g.player.x-cx,g.player.y-31,t,g);
+    }else hero(c,g.player,g.player.x-cx,g.player.y,t,g);
+    effects(c,g,cx);c.restore();
+    overhead(c,g,t);c.restore();
+    if(this.flash>0)rect(c,0,0,WIDTH,HEIGHT,'rgba(255,225,175,'+Math.min(.4,this.flash*.7)+')');
+  }
 }
