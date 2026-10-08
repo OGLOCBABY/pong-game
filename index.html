@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b14">
+  <meta name="description" content="STRIKELINE — a modern, ridiculously satisfying Pong arcade. Solo against adaptive AI or challenge a friend on the same screen.">
+  <meta property="og:title" content="STRIKELINE — Every rally is a rematch">
+  <meta property="og:description" content="The original duel, reengineered. Play Pong in your browser.">
+  <title>STRIKELINE — The Pong Arcade</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="src/main.js"></script>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="topbar">
+      <a href="./" class="brand" aria-label="STRIKELINE home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span>STRIKE<span class="brand-light">LINE</span><sup>®</sup></span>
+      </a>
+      <div class="topbar-right">
+        <span class="topbar-edition">AN ARCADE CLASSIC, REIMAGINED</span>
+        <span class="online-indicator"><span class="online-dot" aria-hidden="true"></span> SYSTEM ONLINE</span>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="eyebrow"><span class="eyebrow-bar"></span> THE DIGITAL PLAYGROUND <span class="eyebrow-dim">/ 001—PONG</span></div>
+        <div class="hero-content">
+          <div>
+            <h1 id="hero-title">EVERY RALLY<br>IS A <span>REMATCH<span class="hero-period">.</span></span></h1>
+            <p class="hero-description">Two paddles. One ball. Infinite ways to lose your cool. The original competitive obsession, rebuilt for the way we play now.</p>
+          </div>
+          <div class="hero-aside" aria-hidden="true">
+            <div class="hero-orbit"><span class="orbit-left"></span><span class="orbit-ball"></span><span class="orbit-right"></span></div>
+            <span class="hero-aside-label">PURE COMPETITION.<br>ZERO COMPROMISE.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="arcade" aria-label="Playable Pong game">
+        <div class="arcade-heading">
+          <div class="arcade-heading-left"><span class="square-icon" aria-hidden="true">✳</span><span>MATCH <span class="text-muted">/</span> 001</span><span class="heading-separator"></span><span class="heading-sub">THE ARENA</span></div>
+          <div class="match-state" role="status"><span class="state-light" id="state-light" aria-hidden="true"></span><span id="state-label">STANDBY</span></div>
+        </div>
+        <div class="arena" id="arena">
+          <canvas id="game-canvas" width="960" height="540" tabindex="0" role="img" aria-label="Pong arena. Move the left paddle with W and S or your pointer. In two-player mode, use arrow keys for the right paddle."></canvas>
+          <div class="arena-vignette" aria-hidden="true"></div>
+          <div class="scoreboard" aria-label="Live match score">
+            <div class="team team-left">
+              <span class="team-label" id="left-team">YOU</span>
+              <span class="team-score" id="left-score">00</span>
+            </div>
+            <span class="scoreboard-colon" aria-hidden="true">:</span>
+            <div class="team team-right">
+              <span class="team-label" id="right-team">CPU</span>
+              <span class="team-score" id="right-score">00</span>
+            </div>
+          </div>
+          <div class="arena-coordinate coordinate-top" aria-hidden="true">X/960 — Y/540</div>
+          <div class="arena-coordinate coordinate-bottom" aria-hidden="true">S T R I K E L I N E // A R E N A</div>
+          <div class="mobile-guide" id="mobile-guide" aria-hidden="true">DRAG TO MOVE YOUR PADDLE</div>
+
+          <div class="game-overlay" id="game-overlay">
+            <div class="overlay-card">
+              <div class="overlay-overline"><span class="overlay-pip"></span><span id="overlay-kicker">WELCOME TO THE ARENA</span></div>
+              <h2 id="overlay-title">READY TO<br><em>RALLY?</em></h2>
+              <p id="overlay-description">First to 7. Win by 2. No second chances.<br>Just kidding — there's always a rematch.</p>
+              <button class="primary-action" id="primary-action" type="button"><span id="primary-action-label">START MATCH</span><span class="action-arrow" aria-hidden="true">↗</span></button>
+              <span class="overlay-shortcut" id="overlay-shortcut">OR PRESS ENTER TO START</span>
+            </div>
+          </div>
+        </div>
+        <div class="arena-ticker" aria-label="Live game statistics">
+          <div class="ticker-item"><span class="ticker-name">CURRENT RALLY</span><strong id="rally-value">00</strong></div>
+          <div class="ticker-item"><span class="ticker-name">BEST RALLY</span><strong id="best-value">00</strong></div>
+          <div class="ticker-item"><span class="ticker-name">BALL SPEED</span><strong id="speed-value">000 <small>PX/S</small></strong></div>
+          <div class="ticker-item ticker-last"><span class="ticker-name">MATCH FORMAT</span><strong>FIRST TO 7 <small>+ 2</small></strong></div>
+        </div>
+      </section>
+
+      <section class="console" aria-label="Game settings and controls">
+        <div class="console-panel console-settings">
+          <div class="panel-heading"><span class="panel-index">01 /</span><h2>SET THE STAGE</h2><span class="panel-tag">GAME SETUP</span></div>
+          <div class="config-row">
+            <div class="config-copy"><h3>GAME MODE</h3><p>One opponent, or one good friend.</p></div>
+            <div class="segmented" role="group" aria-label="Game mode">
+              <button type="button" class="segment active" data-mode="cpu" aria-pressed="true"><span class="segment-symbol" aria-hidden="true">◈</span> VS COMPUTER</button>
+              <button type="button" class="segment" data-mode="local" aria-pressed="false"><span class="segment-symbol" aria-hidden="true">Ⅱ</span> 2 PLAYERS</button>
+            </div>
+          </div>
+          <div class="config-row config-last">
+            <div class="config-copy"><h3>CPU DIFFICULTY</h3><p>Choose how hard they fight back.</p></div>
+            <div class="difficulty-buttons" role="group" aria-label="Computer difficulty" id="difficulty-group">
+              <button type="button" class="difficulty" data-difficulty="rookie" aria-pressed="false">ROOKIE</button>
+              <button type="button" class="difficulty active" data-difficulty="pro" aria-pressed="true">PRO</button>
+              <button type="button" class="difficulty" data-difficulty="legend" aria-pressed="false">LEGEND</button>
+            </div>
+          </div>
+        </div>
+        <div class="console-panel console-actions">
+          <div class="panel-heading"><span class="panel-index">02 /</span><h2>THE CONTROL ROOM</h2><span class="panel-tag">YOUR RULES</span></div>
+          <div class="action-row">
+            <button type="button" id="pause-button" class="secondary-action" disabled><span class="action-symbol" aria-hidden="true">Ⅱ</span><span id="pause-label">PAUSE</span></button>
+            <button type="button" id="restart-button" class="secondary-action"><span class="action-symbol" aria-hidden="true">↺</span> RESTART</button>
+          </div>
+          <div class="preferences">
+            <button type="button" class="preference" id="sound-button" aria-pressed="true"><span>SOUND FX</span><span class="toggle on" id="sound-toggle" aria-hidden="true"><i></i></span></button>
+            <button type="button" class="preference" id="motion-button" aria-pressed="true"><span>GAME EFFECTS</span><span class="toggle on" id="motion-toggle" aria-hidden="true"><i></i></span></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="instructions" aria-labelledby="instructions-title">
+        <div class="instructions-title"><span class="panel-index">03 /</span><h2 id="instructions-title">THE PLAYBOOK</h2><span class="instructions-rule" aria-hidden="true"></span><span>KNOW YOUR MOVES</span></div>
+        <div class="instruction-grid">
+          <div class="instruction-item"><span class="instruction-number">01</span><div class="instruction-body"><strong>PLAYER ONE</strong><span>Left paddle · keyboard or drag</span></div><div class="keys"><kbd>W</kbd><kbd>S</kbd></div></div>
+          <div class="instruction-item"><span class="instruction-number">02</span><div class="instruction-body"><strong>PLAYER TWO</strong><span>In 2-player mode · right paddle</span></div><div class="keys"><kbd>↑</kbd><kbd>↓</kbd></div></div>
+          <div class="instruction-item"><span class="instruction-number">03</span><div class="instruction-body"><strong>PAUSE / RESUME</strong><span>Take a moment. Or don't.</span></div><div class="keys"><kbd>SPACE</kbd></div></div>
+          <div class="instruction-item"><span class="instruction-number">04</span><div class="instruction-body"><strong>QUICK RESTART</strong><span>A fresh start, anytime.</span></div><div class="keys"><kbd>R</kbd></div></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span class="footer-brand">STRIKELINE<span>®</span></span>
+      <span>BUILT FOR THE LOVE OF THE GAME. NO COINS REQUIRED.</span>
+      <span>© 2026 / PRESS PLAY FOREVER</span>
+    </footer>
+  </div>
+  <p id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+</body>
+</html>
