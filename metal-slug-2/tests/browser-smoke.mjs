@@ -142,6 +142,25 @@ try{
   assert(await mobile.locator('[data-control="interact"]').isVisible(),'vehicle control becomes visible after start');
   await mobile.locator('[data-control="fire"]').tap();
   assert.equal((await snap(mobile)).phase,'playing');
+  // Chromium native multi-touch (not JS-dispatched synthetic PointerEvents):
+  // simultaneously run, fire and jump, then release every pressed pointer.
+  const beforeTouch=await snap(mobile);
+  const centers=[];
+  for(const name of ['right','fire','jump']){
+    const rect=await mobile.locator('[data-control="'+name+'"]').boundingBox();
+    assert(rect && rect.width>0 && rect.height>0,name+' touch target must have actual geometry');
+    centers.push({x:rect.x+rect.width/2,y:rect.y+rect.height/2});
+  }
+  const cdp=await mobile.context().newCDPSession(mobile);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:centers.map((p,i)=>({x:p.x,y:p.y,id:i+1}))});
+  await wait(500);
+  const afterTouch=await snap(mobile);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await cdp.detach();
+  assert(afterTouch.player.x>beforeTouch.player.x+10,'simultaneous touch run must move player');
+  assert(afterTouch.player.shots>beforeTouch.player.shots,'simultaneous touch FIRE must fire');
+  assert(afterTouch.player.y<beforeTouch.player.y-10,'simultaneous touch JUMP must launch');
+  console.log('PASS native three-finger touch run/fire/jump',JSON.stringify({dx:afterTouch.player.x-beforeTouch.player.x,dy:afterTouch.player.y-beforeTouch.player.y,shots:afterTouch.player.shots-beforeTouch.player.shots}));
   await mobile.screenshot({path:resolve(out,'mobile-controls.png')});
   // Let the 250ms fade finish before auditing contrast of the now-hidden intro button.
   await mobile.waitForFunction(() => getComputedStyle(document.querySelector('#overlay')).visibility === 'hidden');
