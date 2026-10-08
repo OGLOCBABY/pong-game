@@ -144,7 +144,10 @@ try{
       const p=await b.newPage({viewport:{width:1280,height:800}});
       observe(p,name);await p.goto(url);await boot(p);
       await p.locator('#play').click();
-      await p.keyboard.down('d');await wait(180);await p.keyboard.up('d');
+      // Wait on an observable game-state transition, not a fragile 180ms wall-clock guess.
+      await p.keyboard.down('d');
+      await p.waitForFunction(() => window.__ruins.snapshot().player.x > 115, null, {timeout:5000});
+      await p.keyboard.up('d');
       assert((await snap(p)).player.x>115,name+' directional input');
       await p.screenshot({path:resolve(out,'browser-'+name.toLowerCase()+'.png')});
       console.log('PASS '+name+' startup and real movement');
