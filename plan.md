@@ -1,6 +1,6 @@
 # Plan — STRIKELINE / Pong
 
-Status: **Approved for scoped implementation** (self-annotation pass completed; user asked for autonomous execution).
+Status: **Implemented and tested** (18/18 Node tests; real Chromium/Firefox/WebKit quality gate; see [qa.md](qa.md)).
 Related research: [research.md](research.md).
 
 ## Product vision
@@ -33,19 +33,27 @@ A distinctive, polished, modern single-screen Pong arcade: deep midnight arena, 
 - [x] Decompose to executable checklist (this document).
 
 ### Stage C — Implementation
-- [ ] `index.html`: semantic menu, score, controls, canvas, match overlay, accessible action buttons.
-- [ ] `styles.css`: bespoke responsive visual system, mobile controls, focus, contrast and reduced motion.
-- [ ] `src/engine.js`: deterministic state machine, fixed-step ready/serve, continuous/swept collisions, angled paddle rebounds, rally and match end, varied bounded CPU.
-- [ ] `src/audio.js`: gesture-unlocked synthesis, optional mute, no network fetch.
-- [ ] `src/main.js`: responsive hi-DPI Canvas painter, keyboard/mouse/touch/pointer/gamepad controls, particles, HUD, life-cycle, save settings and best rally locally.
-- [ ] `README.md`: screenshots/feature description, instructions to run, keyboard/touch controls, local and Pages hosting notes, test commands.
-- [ ] `package.json`: Node tests, browser tests; no production dependencies.
-- [ ] `tests/engine.test.mjs`: state transitions, deterministic serves, wall reflections, paddle hit, paddle miss, scoring cap, pause, AI limits and timestep invariants.
-- [ ] `tests/browser-smoke.mjs`: Playwright Chromium script controlling a real browser, checking start/pause/restart, keys/pointer/mobile/local multiplayer, runtime errors, screenshot and an automated rally session.
-- [ ] `.github/workflows/quality.yml`: unit test + Playwright smoke on pushes/PRs; screenshot artifact when available.
-- [ ] Run and fix all available tests; audit visual output where browser evidence can be accessed.
-- [ ] Complete `qa.md` with evidence-based scoring, observed failures and any unresolved limitations.
-- [ ] Close checkboxes, keep clear revision history, verify final repository tree/commit.
+- [x] `index.html`: semantic menu, score, controls, canvas, match overlay, accessible action buttons.
+- [x] `styles.css`: bespoke responsive visual system, mobile controls, focus, contrast and reduced motion.
+- [x] `src/engine.js`: deterministic state machine, fixed-step ready/serve, continuous/swept collisions, angled paddle rebounds, rally and match end, varied bounded CPU.
+- [x] `src/audio.js`: gesture-unlocked synthesis, optional mute, no network fetch.
+- [x] `src/main.js`: responsive hi-DPI Canvas painter, keyboard/mouse/touch/pointer/gamepad controls, particles, HUD, life-cycle, save settings and best rally locally.
+- [x] `README.md`: screenshots/feature description, instructions to run, keyboard/touch controls, local and Pages hosting notes, test commands.
+- [x] `package.json`: Node tests, browser tests; no production dependencies.
+- [x] `tests/engine.test.mjs`: state transitions, deterministic serves, wall reflections, paddle hit, paddle miss, scoring cap, pause, AI limits and timestep invariants.
+- [x] `tests/ai-balance.test.mjs`: completed expert-vs-Pro and pressure-gradient stress simulations.
+- [x] `tests/browser-smoke.mjs`: Playwright Chromium script controlling a real browser, checking start/pause/restart, keys/pointer/mobile/local multiplayer, runtime errors, screenshot and an automated rally session.
+- [x] `.github/workflows/quality.yml`: unit test + Playwright smoke on pushes/PRs; screenshot artifact when available.
+- [x] Run and fix all available tests; audit visual output where browser evidence can be accessed.
+- [x] Complete `qa.md` with evidence-based scoring, observed failures and any unresolved limitations.
+- [x] Close checkboxes, keep clear revision history, verify final repository tree/commit.
+
+## Current disposition
+
+- Completed: original game, visual identity, local multiplayer, three AI skill levels, audio, accessible controls, physics and automated three-engine browser tests.
+- Independently reported rating: **9.5/10 provisional** (see [qa.md](qa.md)). Passing all automated checks is not the same as a defensible perfect score.
+- External/manual gates still unclosed: owner-controlled GitHub Pages enablement, real-device and human playtesting, physical audio listening and manual assistive-technology assessment. These do not require additional changes outside this repository and have not been fabricated as passes.
+- Evidence: [most recent CI runs](https://github.com/OGLOCBABY/pong-game/actions/workflows/quality.yml) and screenshot artifacts.
 
 ## Game logic
 ```js
