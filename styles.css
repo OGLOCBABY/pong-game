@@ -154,7 +154,8 @@ button:focus-visible, a:focus-visible, canvas:focus-visible {
 .action-symbol { color: var(--cyan); font-size: 20px; padding-right: 7px; vertical-align: -2px; }
 .preferences { display: flex; gap: 10px; padding: 1px 0 20px; }
 .preference { width: 50%; text-align: left; border: 1px solid #2c3445; background: #0d1321; padding: 13px 12px; font-size: 10px; color: #b8c0ca; letter-spacing: .03em; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.preference:hover { border-color: var(--cyan); }
+.preference:hover:not(:disabled) { border-color: var(--cyan); }
+.preference:disabled { opacity: .56; cursor: not-allowed; }
 .toggle { display: block; width: 34px; height: 19px; flex-shrink: 0; background: #303748; border-radius: 999px; padding: 3px; transition: background .2s; }
 .toggle i { display: block; width: 13px; height: 13px; background: #95a0b1; border-radius: 50%; transition: transform .2s, background .2s; }
 .toggle.on { background: #255f60; }
