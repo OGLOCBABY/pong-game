@@ -21,7 +21,7 @@ The repository's existing GitHub Pages workflow is intended to expose the standa
 | Jump / continuous hops when held | Space | Jump |
 | Fire weapon | J / Z / left Ctrl (hold) | FIRE |
 | Grenade / mounted downward main cannon | K / X | B |
-| Mount or dismount Slugnoid | E | Keyboard / physical gamepad only in current build; mobile button planned |
+| Mount or dismount Slugnoid | E | E (touch button) |
 | Pause / resume | P / Esc | PAUSE |
 | Restart / replay | R / Enter | UI buttons |
 | Sound | M | SOUND button |
