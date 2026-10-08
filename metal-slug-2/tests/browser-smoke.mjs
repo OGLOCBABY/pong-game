@@ -128,6 +128,8 @@ try{
   await mobile.locator('[data-control="fire"]').tap();
   assert.equal((await snap(mobile)).phase,'playing');
   await mobile.screenshot({path:resolve(out,'mobile-controls.png')});
+  // Let the 250ms fade finish before auditing contrast of the now-hidden intro button.
+  await mobile.waitForFunction(() => getComputedStyle(document.querySelector('#overlay')).visibility === 'hidden');
   await audit(mobile,'mobile');
   console.log('PASS mobile touch controls, 390px layout, axe audit');
 
