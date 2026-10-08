@@ -1,3 +1,4 @@
+import {TOWER_PLATFORMS,TOWER_GATES,SCENES,sceneAt,towerSurfaceAt,routeGate} from './level.js';
 /** RUINS OF THE SECOND SUN — original, deterministic arcade simulation.
  * This module does not touch the DOM, clock, storage, audio or network.
  */
@@ -14,7 +15,7 @@ const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h 
 
 const ENEMY_LAYOUT = [
   [430,'rifle'],[675,'rifle'],[790,'rifle'],[1130,'rifle'],[1330,'rifle'],[1480,'rifle'],
-  [1760,'mummy'],[1950,'mummy'],[2170,'bat'],[2380,'mummy'],[2590,'mummy'],[2780,'spawner'],
+  [1570,'barrel'],[1760,'mummy'],[1950,'mummy'],[2170,'bat'],[2380,'mummy'],[2590,'mummy'],[2780,'spawner'],
   [3050,'mummy'],[3290,'turret'],[3410,'mummy'],[3650,'bat'],[3850,'mummy'],[3990,'mummy'],
   [4230,'spawner'],[4490,'bat'],[4650,'mummy'],[4870,'rifle'],[5100,'turret'],[5240,'rifle']
 ];
@@ -24,10 +25,8 @@ const PICKUP_LAYOUT = [
   [4420,'heavy'],[4720,'pow'],[4990,'slug'],[5200,'health'],[5530,'grenade']
 ];
 const PLATFORMS = [
-  {x:1035,y:380,w:210},{x:2040,y:375,w:185},{x:2290,y:320,w:190},
-  {x:2900,y:365,w:190},{x:3550,y:387,w:185},{x:3750,y:330,w:190},
-  {x:4010,y:278,w:200},{x:4290,y:343,w:190},{x:4530,y:295,w:195},
-  {x:4850,y:357,w:190},{x:5140,y:310,w:170}
+  {x:1035,y:380,w:210},{x:2040,y:375,w:185},{x:2290,y:320,w:190},{x:2900,y:365,w:190},
+  ...TOWER_PLATFORMS
 ];
 const PICKUP_HEIGHTS = {2150:330,2390:278,3430:408,3730:286,4420:292,4720:413};
 const PHASES = ['DUNES AT DUSK','BENEATH THE STONE','THE RISING TOMB','IRON COLOSSUS'];
@@ -40,17 +39,18 @@ export function sweptHit(a, b, radius=0) {
 }
 
 export class RuinsGame {
-  constructor({seed=7098}={}) {this.initialSeed=seed >>> 0 || 1;this.reset();}
+  constructor({seed=7098,mode='faithful'}={}) {this.initialSeed=seed >>> 0 || 1;this.mode=mode==='practice'?'practice':'faithful';this.reset();}
   random() {let x=this.seed; x^=x<<13;x^=x>>>17;x^=x<<5;this.seed=x>>>0;return this.seed/4294967296;}
   reset() {
-    this.seed=this.initialSeed;this.phase='ready';this.time=0;this.score=0;this.camera=0;
-    this.player={x:100,y:FLOOR-48,w:26,h:48,vx:0,vy:0,grounded:true,dir:1,health:3,lives:3,invuln:0,curse:0,weapon:'pistol',ammo:Infinity,grenades:8,fireCooldown:0,throwCooldown:0,anim:0,checkpoint:100,shots:0,kills:0};
-    this.bullets=[];this.grenades=[];this.enemies=[];this.pickups=PICKUP_LAYOUT.map(([x,type],id)=>({id,x,y:PICKUP_HEIGHTS[x]??(FLOOR-38),type,taken:false,phase:this.random()*6}));
+    this.seed=this.initialSeed;this.phase='ready';this.time=0;this.score=0;this.camera={x:0,y:0};
+    this.player={x:100,y:FLOOR-48,w:26,h:48,vx:0,vy:0,grounded:true,dir:1,health:this.mode==='faithful'?1:3,lives:3,invuln:0,curse:0,weapon:'pistol',ammo:Infinity,grenades:8,fireCooldown:0,throwCooldown:0,anim:0,checkpoint:100,checkpointY:FLOOR-48,shots:0,kills:0,crouch:false};
+    this.bullets=[];this.grenades=[];this.enemies=[];this.pickups=PICKUP_LAYOUT.map(([x,type],id)=>({id,x,y:PICKUP_HEIGHTS[x]??(towerSurfaceAt(x)-38),type,taken:false,phase:this.random()*6}));
     this.spawns=ENEMY_LAYOUT.map(([x,type],id)=>({x,type,id,activated:false}));
     this.platforms=PLATFORMS.map(p=>({...p,h:14}));
-    this.secrets=[{x:366,y:281,w:22,h:25,kind:'sphinx',triggered:false},{x:4195,y:245,w:30,h:26,kind:'lamp',triggered:false}];
-    this.particles=[];this.floating=[];this.events=[];this.input={left:false,right:false,up:false,down:false,jump:false,fire:false,grenade:false};
-    this.boss={x:6100,y:338,hp:58,maxHp:58,active:false,dead:false,t:0,attackT:1.5,phase:0,telegraph:0,entry:0};
+    this.secrets=[{x:366,y:281,w:22,h:25,kind:'sphinx',triggered:false},{x:4220,y:-10,w:30,h:26,kind:'lamp',triggered:false}];
+    this.particles=[];this.floating=[];this.events=[];this.input={left:false,right:false,up:false,down:false,jump:false,fire:false,grenade:false,interact:false};
+    this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:0};this.hazards=[];this.gateOpen=false;this.sceneId='desert';this.scenes=SCENES;this.maxHeight=0;
+    this.boss={x:6100,y:405,hp:58,maxHp:58,active:false,dead:false,t:0,attackT:1.5,phase:0,telegraph:0,entry:0,mode:'missile',counter:0,charges:0};
     this.act=0;this.bossGate=false;this.kills=0;this.shots=0;this.hits=0;this.rescues=0;this.combo=0;this.comboTimer=0;
     return this;
   }
@@ -61,7 +61,7 @@ export class RuinsGame {
   burst(x,y,color,n=12,power=150){for(let i=0;i<n;i++){let a=this.random()*Math.PI*2,s=(.3+this.random()*.7)*power;this.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-45,life:.25+this.random()*.45,max:.7,size:2+this.random()*4,color});} if(this.particles.length>300)this.particles.splice(0,this.particles.length-300);}
   float(x,y,text,color='#ffe19a'){this.floating.push({x,y,text,color,life:1.15});}
   addScore(score,x,y){this.score+=score;this.float(x,y,`+${score.toLocaleString('en-US')}`);}
-  spawn(type,x,y=FLOOR){const hp={rifle:2,mummy:3,bat:2,turret:5,spawner:9}[type]||2;const h={rifle:43,mummy:47,bat:20,turret:34,spawner:53}[type]||40;this.enemies.push({id:this.enemies.length+this.kills*1000,type,x,y:y-h,w:type==='spawner'?50:29,h,vx:0,vy:0,hp,maxHp:hp,hit:0,t:0,shoot:.5+this.random()*1.3,spawn:.9+this.random(),dir:-1,dead:false,active:true,attack:0,grounded:true});}
+  spawn(type,x,y=towerSurfaceAt(x)){const hp={rifle:2,mummy:3,bat:2,turret:5,spawner:9,barrel:4}[type]||2;const h={rifle:43,mummy:47,bat:20,turret:34,spawner:53,barrel:42}[type]||40;this.enemies.push({id:this.enemies.length+this.kills*1000,type,x,y:y-h,w:type==='spawner'?50:type==='barrel'?50:29,h,vx:0,vy:0,hp,maxHp:hp,hit:0,t:0,shoot:.5+this.random()*1.3,spawn:.9+this.random(),dir:-1,dead:false,active:true,attack:0,grounded:true});}
   firePlayer(){const p=this.player;if(p.fireCooldown>0||p.curse>0&&p.fireCooldown>0)return;
     const isSlug=p.weapon==='slug'&&p.ammo>0, isHeavy=(p.weapon==='heavy'||isSlug)&&p.ammo>0, isSpread=p.weapon==='spread'&&p.ammo>0;
     const rate=p.curse>0?.29:isSlug?.095:isHeavy?.075:isSpread?.27:.16;p.fireCooldown=rate;
@@ -75,18 +75,32 @@ export class RuinsGame {
     this.burst(origin.x+dx*4,origin.y+dy*4,'#fff0ab',3,62);
   }
   toss(){const p=this.player;if(p.grenades<=0||p.throwCooldown>0||p.curse>0)return; p.grenades--;p.throwCooldown=.43;this.grenades.push({x:p.x+p.w/2,y:p.y+8,vx:p.dir*335+p.vx*.3,vy:-490,t:0,fuse:1.25});this.emit('throw');}
-  damagePlayer(amount=1,kind='bullet'){const p=this.player;if(this.phase!=='playing'||p.invuln>0)return false;
-    if(kind==='curse'&&p.curse<=0){p.curse=7.5;p.weapon='pistol';p.ammo=Infinity;p.invuln=1.2;this.burst(p.x+12,p.y+20,'#a7e681',28,190);this.emit('curse');return true;}
-    if(kind==='curse')return false;
-    p.health=Math.max(0,p.health-amount);p.invuln=1.75;this.burst(p.x+12,p.y+17,'#ff8c60',20,165);this.emit('hurt');
-    if(p.health<=0){p.lives--;if(p.lives<=0){this.phase='lost';this.emit('lost');}else{this.respawn();}}
+  damagePlayer(amount=1,kind='bullet') {
+    const p=this.player;
+    if(this.phase!=='playing'||p.invuln>0)return false;
+    if(this.vehicle.mounted){
+      this.vehicle.hp=Math.max(0,this.vehicle.hp-1);
+      this.vehicle.gunsLeft=Math.max(0,this.vehicle.gunsLeft-1);
+      p.invuln=1.25;this.emit('vehiclehit',p.x,p.y,{hp:this.vehicle.hp,guns:this.vehicle.gunsLeft});
+      this.burst(p.x,p.y,'#ffcc79',20,190);
+      if(!this.vehicle.hp){this.vehicle.mounted=false;p.weapon='pistol';p.ammo=Infinity;p.invuln=2;this.emit('vehiclelost');}
+      return true;
+    }
+    if(kind==='curse'){
+      if(p.curse>0){p.health=0;p.lives--;this.emit('mummydeath');if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();return true;}
+      p.curse=9999;p.weapon='pistol';p.ammo=Infinity;p.invuln=.65;
+      this.burst(p.x+12,p.y+20,'#a7e681',28,190);this.emit('curse');return true;
+    }
+    p.health=Math.max(0,p.health-amount);p.invuln=1.6;
+    this.burst(p.x+12,p.y+17,'#ff8c60',20,165);this.emit('hurt');
+    if(p.health<=0){p.lives--;if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();}
     return true;
   }
-  respawn(){const p=this.player;p.x=p.checkpoint;p.y=FLOOR-p.h;p.vx=0;p.vy=0;p.grounded=true;p.health=3;p.invuln=2.8;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
+  respawn(){const p=this.player;p.x=p.checkpoint;p.y=p.checkpointY;p.vx=0;p.vy=0;p.grounded=true;p.health=this.mode==='faithful'?1:3;p.invuln=2.8;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:this.vehicle.serial};this.hazards=[];this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
   collect(item){if(item.taken)return;item.taken=true;const p=this.player;let pts=100;
     switch(item.type){case 'heavy':p.weapon='heavy';p.ammo=175;pts=300;break;
       case 'spread':p.weapon='spread';p.ammo=65;pts=300;break;
-      case 'slug':p.weapon='slug';p.ammo=240;p.health=3;p.invuln=Math.max(p.invuln,.8);pts=1500;break;
+      case 'slug':p.weapon='slug';p.ammo=240;this.vehicle={mounted:true,hp:3,maxHp:3,gunsLeft:2,serial:this.vehicle.serial+1};p.health=this.mode==='faithful'?1:3;p.invuln=Math.max(p.invuln,.8);this.emit('mount');pts=1500;break;
       case 'coin':pts=500;break;
       case 'grenade':p.grenades=Math.min(20,p.grenades+5);pts=200;break;
       case 'health':p.health=Math.min(3,p.health+2);pts=200;break;
@@ -95,7 +109,7 @@ export class RuinsGame {
       case 'gem':pts=2000;break;}
     this.addScore(pts,item.x,item.y-12);this.burst(item.x,item.y,item.type==='antidote'?'#84ffc7':'#ffe8a4',20,170);this.emit('pickup',item.x,item.y,{item:item.type});}
   damageEnemy(e,value,x,y){if(e.dead)return;e.hp-=value;e.hit=.13;this.burst(x,y,'#ffc26f',6,90);this.emit('hit',x,y);
-    if(e.hp<=0){e.dead=true;this.kills++;this.combo++;this.comboTimer=4;const pts=e.type==='spawner'?800: e.type==='turret'?500:200;this.addScore(pts+Math.min(10,this.combo)*30,e.x,e.y);this.burst(e.x+e.w/2,e.y+e.h/2,e.type==='spawner'?'#b9eece':'#ffc27b',21,215);this.emit('kill',e.x,e.y,{enemy:e.type});if(e.type==='spawner')this.pickups.push({id:1000+this.pickups.length,x:e.x+25,y:FLOOR-40,type:'antidote',taken:false,phase:0});}}
+    if(e.hp<=0){e.dead=true;this.kills++;this.combo++;this.comboTimer=4;const pts=e.type==='spawner'?800: e.type==='turret'?500:200;this.addScore(pts+Math.min(10,this.combo)*30,e.x,e.y);this.burst(e.x+e.w/2,e.y+e.h/2,e.type==='spawner'?'#b9eece':'#ffc27b',21,215);this.emit('kill',e.x,e.y,{enemy:e.type});if(e.type==='spawner')this.pickups.push({id:1000+this.pickups.length,x:e.x+25,y:e.y+e.h-40,type:'antidote',taken:false,phase:0});if(e.type==='barrel'){this.gateOpen=true;this.emit('gateopen',e.x,e.y);}}}
   damageBoss(value,x,y){const b=this.boss;if(!b.active||b.dead)return;b.hp=Math.max(0,b.hp-value);b.phase=b.hp<b.maxHp*.35?2:b.hp<b.maxHp*.7?1:0;this.burst(x,y,'#f7e49b',8,180);this.emit('bosshit',x,y);
     if(b.hp===0){b.dead=true;this.bossGate=false;this.bullets=this.bullets.filter(v=>v.owner==='player');this.addScore(15000,b.x,b.y);this.burst(b.x-25,b.y,'#ffe9a0',100,350);this.phase='won';this.emit('won');}}
   explode(g){this.burst(g.x,g.y,'#ffb460',45,260);this.emit('explosion',g.x,g.y);const rad=107;
