@@ -22,19 +22,19 @@ function showOverlay(phase){overlay.classList.remove('hidden');helpShowing=false
 function primary(){if(game.phase==='paused'){game.togglePause();overlay.classList.add('hidden');canvas.focus({preventScroll:true});}else if(game.phase==='won'||game.phase==='lost'){game.start();overlay.classList.add('hidden');canvas.focus({preventScroll:true});}else begin();}
 function pause(){if(game.phase==='playing'||game.phase==='paused'){game.togglePause();if(game.phase==='paused'){showOverlay('paused');announce('Game paused.');}else{overlay.classList.add('hidden');announce('Game resumed.');}}}
 function message(text,seconds=2.5){const e=$('event-banner');e.textContent=text;e.classList.add('visible');bannerUntil=game.time+seconds;}
-function processEvents(events){art.react(events);for(const event of events){sound.play(event);switch(event.type){case 'act':message(`ACT ${['I','II','III','IV'][event.act]} — ${event.title}`,3);announce(`Now entering ${event.title}`);break;
-    case 'boss':message('WARNING · AESHI NERO',3.6);announce('Aeshi Nero is rising below. Shoot downward, dodge the warning beams.');break;
+function processEvents(events){art.react(events);for(const event of events){sound.play(event);switch(event.type){case 'act':message(`ACT ${['I','II','III','IV'][event.act]} — ${event.title}`,1.1);announce(`Now entering ${event.title}`);break;
+    case 'boss':message('WARNING · AESHI NERO',1.6);announce('Aeshi Nero is rising below. Shoot downward, dodge the warning beams.');break;
     case 'scene':announce('Entering '+game.sceneId+'.');break;
     case 'gateopen':message('ENTRANCE OPEN · GO!',2.2);announce('The danger barrel is destroyed. The tomb is open.');break;
-    case 'mount':message('SLUGNOID ONLINE',2);announce('Slugnoid mounted. Use K for downward cannon, E to exit.');break;
+    case 'mount':message('SLUGNOID ONLINE',1);announce('Slugnoid mounted. Use K for downward cannon, E to exit.');break;
     case 'dismount':message('DISMOUNTED',1.3);break;
-    case 'vehiclehit':message('SLUG ARMOR '+event.hp,1.6);announce('Walker damaged, '+event.hp+' armor remaining.');break;
+    case 'vehiclehit':message('SLUG ARMOR '+event.hp,1);announce('Walker damaged, '+event.hp+' armor remaining.');break;
     case 'vehiclelost':message('SLUGNOID DESTROYED',2.0);announce('Your walker has been destroyed. Continue on foot.');break;
     case 'laser':message('ENERGY BEAM · EVADE!',.7);break;
     case 'mummydeath':message('THE CURSE CONSUMES YOU',2);break;
-    case 'checkpoint':message('CHECKPOINT',1.4);break;
-    case 'secret':message(event.secret==='sphinx'?'SPHINX SECRET! +10,000':'THE GOLDEN LAMP AWAKES!',2.5);break;
-    case 'curse':message('CURSED! FIND AN ANTIDOTE',2.8);announce('Mummy curse! Movement reduced. Find a green antidote.');break;
+    case 'checkpoint':message('CHECKPOINT',.75);break;
+    case 'secret':message(event.secret==='sphinx'?'SPHINX SECRET! +10,000':'THE GOLDEN LAMP AWAKES!',1.3);break;
+    case 'curse':message('CURSED! FIND AN ANTIDOTE',1.3);announce('Mummy curse! Movement reduced. Find a green antidote.');break;
     case 'pickup':if(event.item==='pow')announce('Explorer rescued!');else if(event.item==='heavy'||event.item==='spread')announce(`${event.item.toUpperCase()} weapon collected.`);break;
     case 'respawn':message('CONTINUE!',1.4);announce(`You have ${game.player.lives} lives left.`);break;
     case 'won':showOverlay('won');announce('Mission complete! You destroyed the Iron Colossus.');break;
