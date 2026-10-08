@@ -12,7 +12,7 @@
 
 Visit **http://localhost:4173**. You can also use `npx serve .` if Node is installed. ES modules should be loaded over HTTP(S); opening `index.html` directly with a `file://` URL may be blocked by the browser.
 
-To publish the game to the web, go to this repository's **Settings → Pages → Build and deployment → Deploy from a branch**, select `main` and `/(root)`, and save. GitHub Pages will provide the site's actual URL; publishing is not guaranteed merely because the code has been pushed. All asset URLs are relative so GitHub Pages project paths work.
+To publish on this repository's own GitHub Pages site, go to **Settings → Pages → Build and deployment → Source → GitHub Actions**. The included `STRIKELINE Pages` workflow automatically publishes the minimal static runtime after the quality workflow passes, or can be run manually from Actions. **Pages is not enabled until the repository owner chooses that source**; no live URL should be assumed before a successful deployment. All game assets use relative URLs, so a GitHub Pages project path works.
 
 ## Inside the arena
 
@@ -51,8 +51,11 @@ On touchscreens, tap and hold at your preferred paddle height; drag to follow th
 | `src/audio.js` | Browser-native Web Audio tones; nothing downloaded |
 | `tests/engine.test.mjs` | Node physics, controls, scoring and autonomous match tests |
 | `tests/ai-balance.test.mjs` | Long-running simulated matches to keep Pro beatable and Legend demanding |
+| `tests/property.test.mjs` | 72 completed matches across modes and skill levels, plus numerical invariants |
+| `tests/audio.test.mjs` | Mocked Web Audio sound generation and mute-safe behavior |
 | `tests/browser-smoke.mjs` | Chromium desktop/mobile tests with scripted live gameplay and screenshots |
 | `.github/workflows/quality.yml` | Continuous quality checks on pushes and PRs |
+| `.github/workflows/pages.yml` | Publish GitHub Pages only after quality passes and Pages is enabled |
 | `research.md`, `plan.md`, `qa.md` | Audited baseline, staged implementation, validation and limitations |
 
 **The game has zero production dependencies.** Dev-only Playwright and axe-core are pinned for reproducible browser and accessibility verification. Fonts use local/system fallbacks, artwork is rendered by CSS/Canvas and all audio is synthesized.
@@ -69,7 +72,7 @@ Node.js 20+ required for tests:
 
 `npm run smoke`
 
-For the full cross-browser suite, install `npx playwright install --with-deps chromium firefox webkit` on Linux or `npx playwright install chromium firefox webkit` on desktop. The automated suite runs **18 engine/balance tests** and uses real Chromium, Firefox, and WebKit, including keyboard, simultaneous multitouch, a complete match and rematch, narrow phone layouts and **axe-core WCAG 2.1 AA** checks. Screenshots are saved to `test-results/` within the repository and uploaded as a GitHub Actions artifact.
+For the full cross-browser suite, install `npx playwright install --with-deps chromium firefox webkit` on Linux or `npx playwright install chromium firefox webkit` on desktop. The automated suite runs **21 engine, audio, property and AI balance tests**, including a 72-match sweep, and uses real Chromium, Firefox and WebKit. It checks keyboard shortcuts, simultaneous multitouch, persistent settings, complete matches and rematches, phone portrait/landscape layouts, **zero external network requests**, and **axe-core WCAG 2.1 AA** automated accessibility rules. Screenshots are saved to `test-results/` within the repository and uploaded as a GitHub Actions artifact.
 
 See **[GitHub Actions](https://github.com/OGLOCBABY/pong-game/actions/workflows/quality.yml)** for actual run results. See [qa.md](qa.md) for evidence-based scores and any limitations. A pass is not inferred from the existence of a workflow file.
 
