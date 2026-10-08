@@ -124,6 +124,7 @@ function showOverlay() {
   if (phase === lastOverlayPhase) return;
   lastOverlayPhase = phase;
   elements.overlay.hidden = phase !== 'idle' && phase !== 'paused' && phase !== 'gameover';
+  elements.arena.classList.toggle('showing-overlay', !elements.overlay.hidden);
   elements.pause.disabled = phase !== 'ready' && phase !== 'playing' && phase !== 'paused';
   elements.pauseLabel.textContent = phase === 'paused' ? 'RESUME' : 'PAUSE';
 
