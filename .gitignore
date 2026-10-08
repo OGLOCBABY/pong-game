@@ -1,0 +1,8 @@
+# Local development only. The deployed arcade uses no build output.
+node_modules/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+*.tsbuildinfo
+coverage/
