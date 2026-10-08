@@ -1,0 +1,9 @@
+{
+  "name": "ruins-of-the-second-sun",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Original dependency-free arcade action game",
+  "scripts": {"test": "node --test tests/engine.test.mjs", "smoke": "node tests/browser-smoke.mjs", "check": "npm test && npm run smoke"},
+  "engines": {"node": ">=20"}
+}
