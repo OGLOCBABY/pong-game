@@ -66,6 +66,23 @@ test('jump is physically ballistic, platform landing does not tunnel',()=>{
   g.player.x=platform.x+25;g.player.y=platform.y-140;g.player.vy=50;g.player.grounded=false;
   tick(g,80);assert.equal(g.player.y+g.player.h,platform.y);
 });
+test('one-way tower camera never scrolls down to hide upper traversal',()=>{
+  const g=create('practice');g.start();g.spawns=[];
+  g.player.x=4520;g.player.y=-210;g.player.grounded=false;
+  g.camera.y=-450;g.player.vy=0;
+  tick(g,3);
+  assert.ok(g.camera.y<=-450,'tower ascent camera should be monotonic');
+});
+test('falling beneath locked tower camera consumes a life and safely resets view',()=>{
+  const g=create('practice');g.start();g.spawns=[];
+  g.player.x=4500;g.player.y=300;g.player.checkpoint=3530;g.player.checkpointY=408;
+  g.camera.y=-700;tick(g,1);
+  assert.equal(g.player.lives,4,'fall must consume life even under invulnerability');
+  assert.equal(g.player.x,3530);
+  assert.equal(g.player.y,408);
+  assert.equal(g.camera.y,0,'respawn must reset camera to visible checkpoint');
+  assert.equal(g.phase,'playing');
+});
 test('pause blocks all simulation activity and resumes',()=>{
   const g=create('practice');g.start();g.setInput({right:true,fire:true});tick(g,40);
   g.togglePause();const before=g.snapshot();tick(g,300);g.step(1);
