@@ -250,7 +250,9 @@ try {
 
   await mobile.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal((await snapshot(mobile)).effects, false, 'OS reduced-motion preference must suppress effects');
-  console.log('PASS OS reduced-motion preference');
+  assert.equal(await mobile.locator('#motion-button').getAttribute('aria-pressed'), 'false');
+  assert.equal(await mobile.locator('#motion-button').isDisabled(), true);
+  console.log('PASS OS reduced-motion preference and accurate disabled controls');
 
   const tinyContext = await browser.newContext({ viewport: { width: 320, height: 740 }, deviceScaleFactor: 1 });
   const tiny = await tinyContext.newPage();
