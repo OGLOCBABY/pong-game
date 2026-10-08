@@ -117,11 +117,14 @@ try{
 
   const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
   observe(mobile,'mobile');await mobile.goto(url);await boot(mobile);
-  assert(await mobile.locator('[data-control="down"]').isVisible());
+  assert.equal(await mobile.locator('[data-control="down"]').count(),1,'touch down-aim button exists');
   const overflow=await mobile.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
   assert(overflow<4,'mobile horizontal overflow '+overflow);
   await mobile.screenshot({path:resolve(out,'mobile-intro.png'),fullPage:true});
   await mobile.locator('#play').click();
+  await mobile.waitForFunction(()=>window.__ruins.snapshot().phase==='playing');
+  assert(await mobile.locator('[data-control="down"]').isVisible(),'down aim becomes visible after start');
+  assert(await mobile.locator('[data-control="interact"]').isVisible(),'vehicle control becomes visible after start');
   await mobile.locator('[data-control="fire"]').tap();
   assert.equal((await snap(mobile)).phase,'playing');
   await mobile.screenshot({path:resolve(out,'mobile-controls.png')});
