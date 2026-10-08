@@ -193,6 +193,21 @@ function drawSlugnoid(c,p,x,y,t,v){
   c.restore();
 }
 function renderHazards(c,g,cx){
+  if(g.boss.active&&!g.boss.dead&&g.boss.entry>=1&&g.boss.telegraph>0){
+    const x=g.boss.mode==='laser'?g.boss.targetX-cx:g.boss.x-cx;
+    c.save();
+    const pulse=.22+.20*(.5+.5*Math.sin(g.time*28));
+    c.globalAlpha=pulse;
+    if(g.boss.mode==='laser'){
+      rect(c,x-52,g.boss.y-720,104,730,'#f65c91');
+      line(c,x,g.boss.y-720,x,g.boss.y+10,'#fff1d7',3);
+      for(let k=0;k<4;k++)line(c,x-50+k*33,g.boss.y-720,x-50+k*33,g.boss.y+10,'#ffa8ba',2);
+    }else if(g.boss.mode==='lunge'){
+      rect(c,x-95,g.boss.y-340,190,340,'#f47e4e');
+      line(c,x-95,g.boss.y-340,x+95,g.boss.y,'#ffd2ab',4);
+    }else glow(c,x,g.boss.y-55,110,'#ffae6388');
+    c.restore();
+  }
   for(const h of g.hazards||[]){
     c.save();c.globalAlpha=Math.min(1,h.life*2.3);
     const x=h.x-cx;
