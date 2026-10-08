@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A dependency-free production Pong arcade with a deterministic physics engine.",
   "scripts": {
-    "test": "node --test tests/engine.test.mjs tests/ai-balance.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/ai-balance.test.mjs tests/property.test.mjs",
     "smoke": "node tests/browser-smoke.mjs",
     "check": "npm run test && npm run smoke"
   },
