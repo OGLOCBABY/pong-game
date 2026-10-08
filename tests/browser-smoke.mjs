@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
 
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const output = resolve(root, 'test-results');
@@ -161,6 +161,60 @@ try {
   assert(afterTouch > beforeTouch + 25, 'touch must move paddle down');
   await mobile.screenshot({ path: resolve(output, '05-mobile-play.png'), fullPage: true });
   console.log('PASS mobile layout (no sideways scroll), real touch input and screenshots');
+
+  // Two people must be able to touch separate sides *simultaneously*.
+  await mobile.locator('[data-mode="local"]').click();
+  await mobile.locator('#primary-action').click();
+  await waitPlaying(mobile);
+  await mobile.locator('#game-canvas').scrollIntoViewIfNeeded();
+  const duelBox = await mobile.locator('#game-canvas').boundingBox();
+  const pairBefore = await snapshot(mobile);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [
+      { id: 11, x: duelBox.x + duelBox.width * .15, y: duelBox.y + duelBox.height * .1 },
+      { id: 12, x: duelBox.x + duelBox.width * .85, y: duelBox.y + duelBox.height * .9 },
+    ],
+  });
+  await delay(320);
+  const pairAfter = await snapshot(mobile);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  assert(pairAfter.paddles.left.y < pairBefore.paddles.left.y - 15, 'first touch should move left paddle up');
+  assert(pairAfter.paddles.right.y > pairBefore.paddles.right.y + 15, 'second touch should move right paddle down');
+  console.log('PASS simultaneous two-player multi-touch');
+
+  await mobile.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal((await snapshot(mobile)).effects, false, 'OS reduced-motion preference must suppress effects');
+  console.log('PASS OS reduced-motion preference');
+
+  const tinyContext = await browser.newContext({ viewport: { width: 320, height: 740 }, deviceScaleFactor: 1 });
+  const tiny = await tinyContext.newPage();
+  tiny.on('pageerror', (error) => errors.push('tiny: ' + error.message));
+  await tiny.goto(url, { waitUntil: 'networkidle' });
+  const tinyOverflow = await tiny.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(tinyOverflow < 3, '320px viewport must not scroll horizontally: ' + tinyOverflow);
+  await tiny.screenshot({ path: resolve(output, '06-small-phone.png'), fullPage: true });
+  await tinyContext.close();
+  console.log('PASS narrow 320px viewport and screenshot');
+
+  // Cover Firefox and Safari's rendering engine as well as Chromium.
+  for (const [engineName, engine] of [['Firefox', firefox], ['WebKit', webkit]]) {
+    const alternate = await engine.launch({ headless: true });
+    try {
+      const other = await alternate.newPage({ viewport: { width: 1280, height: 800 } });
+      other.on('pageerror', (error) => errors.push(engineName + ': ' + error.message));
+      await other.goto(url, { waitUntil: 'networkidle' });
+      assert.equal((await snapshot(other)).phase, 'idle', engineName);
+      await other.locator('#primary-action').click();
+      await waitPlaying(other);
+      await other.locator('#pause-button').click();
+      assert.equal((await snapshot(other)).phase, 'paused', engineName);
+      await other.screenshot({ path: resolve(output, '07-' + engineName.toLowerCase() + '.png'), fullPage: true });
+      console.log('PASS ' + engineName + ' game boot, playing, pause and screenshot');
+    } finally {
+      await alternate.close();
+    }
+  }
 
   // Focus and labels are part of the interaction contract.
   assert(await desktop.locator('button[aria-pressed]').count() >= 5);
