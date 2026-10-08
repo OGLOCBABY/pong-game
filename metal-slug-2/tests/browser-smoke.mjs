@@ -15,7 +15,7 @@ const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=u
 const server=createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,'http://127.0.0.1');
-    const loc=decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname);
+    const loc=decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname.endsWith('/')?url.pathname+'index.html':url.pathname);
     const path=resolve(root,'.'+loc);
     if(!path.startsWith(root+sep)){res.writeHead(403).end();return;}
     const data=await readFile(path);
