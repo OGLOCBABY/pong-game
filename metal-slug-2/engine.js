@@ -138,7 +138,7 @@ export class RuinsGame {
     if(p.health<=0){p.lives--;if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();}
     return true;
   }
-  respawn(){const p=this.player;p.x=p.checkpoint;p.y=p.checkpointY;p.vx=0;p.vy=0;p.grounded=true;p.health=this.mode==='faithful'?1:5;p.invuln=this.mode==='faithful'?2.8:3.2;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:this.vehicle.serial,x:null,y:null};this.hazards=[];this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
+  respawn(){const p=this.player;p.x=p.checkpoint;p.y=p.checkpointY;this.camera.y=Math.min(0,p.y-280);p.vx=0;p.vy=0;p.grounded=true;p.health=this.mode==='faithful'?1:5;p.invuln=this.mode==='faithful'?2.8:3.2;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:this.vehicle.serial,x:null,y:null};this.hazards=[];this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
   collect(item){if(item.taken)return;item.taken=true;const p=this.player;let pts=100;
     switch(item.type){case 'heavy':p.weapon='heavy';p.ammo=175;pts=300;break;
       case 'spread':p.weapon='spread';p.ammo=65;pts=300;break;
@@ -302,7 +302,15 @@ export class RuinsGame {
     this.comboTimer-=dt;if(this.comboTimer<=0)this.combo=0;
     const cameraX=clamp(this.player.x-340,0,WORLD_END-WIDTH),cameraY=this.boss.active?-850:Math.min(0,this.player.y-210);
     this.camera.x+=((cameraX)-this.camera.x)*Math.min(1,dt*7);
-    this.camera.y+=(Math.max(-1050,cameraY)-this.camera.y)*Math.min(1,dt*6);
+    const nextY=Math.max(-1050,cameraY);
+    const targetY=(this.player.x>=3480&&!this.boss.active)?Math.min(this.camera.y,nextY):nextY;
+    this.camera.y+=(targetY-this.camera.y)*Math.min(1,dt*6);
+    if(this.player.x>=3480&&this.player.y-this.camera.y>HEIGHT+70&&this.phase==='playing'){
+      this.player.lives=Math.max(0,this.player.lives-1);
+      this.emit('fall',this.player.x,this.player.y);
+      if(!this.player.lives){this.phase='lost';this.emit('lost');}
+      else this.respawn();
+    }
     return this.events;
   }
   snapshot(){return {phase:this.phase,mode:this.mode,time:this.time,score:this.score,act:this.act,sceneId:this.sceneId,gateOpen:this.gateOpen,camera:{...this.camera},maxHeight:this.maxHeight,player:{...this.player},vehicle:{...this.vehicle},boss:{...this.boss},hazards:this.hazards.length,enemies:this.enemies.length,bullets:this.bullets.length,kills:this.kills,rescues:this.rescues};}
