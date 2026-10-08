@@ -21,7 +21,7 @@ const ENEMY_LAYOUT = [
 ];
 const PICKUP_LAYOUT = [
   [630,'grenade'],[1240,'heavy'],[1520,'gem'],[1880,'antidote'],[2150,'pow'],[2390,'spread'],
-  [2870,'antidote'],[3110,'grenade'],[3430,'pow'],[3730,'gem'],[4140,'antidote'],
+  [2870,'antidote'],[3110,'grenade'],[3430,'pow'],[3480,'antidote'],[3730,'gem'],[4140,'antidote'],
   [4420,'heavy'],[4720,'pow'],[4990,'slug'],[5200,'health'],[5530,'grenade']
 ];
 const PLATFORMS = [
