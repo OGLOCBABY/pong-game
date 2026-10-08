@@ -135,6 +135,13 @@ try {
   await desktop.screenshot({ path: resolve(output, '03-desktop-played.png'), fullPage: true });
   console.log('PASS scripted Chromium game session', JSON.stringify({ tracked, peakRally, elapsed: Math.round(postPlay.elapsed), score: postPlay.score }));
 
+  await desktop.keyboard.press('r');
+  const restarted = await snapshot(desktop);
+  assert.equal(restarted.phase, 'ready', 'R must immediately restart into serve countdown');
+  assert.deepEqual(restarted.score, { left: 0, right: 0 });
+  await waitPlaying(desktop);
+  console.log('PASS instant keyboard restart and score reset');
+
   const mobileContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2, isMobile: true, hasTouch: true,
