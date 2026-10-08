@@ -8,8 +8,11 @@ import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { chromium, firefox, webkit } from 'playwright';
 
+const require = createRequire(import.meta.url);
+const axeScript = require.resolve('axe-core/axe.min.js');
 const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
 const output = resolve(root, 'test-results');
 await mkdir(output, { recursive: true });
@@ -47,6 +50,22 @@ let browser;
 const errors = [];
 const snapshot = (page) => page.evaluate(() => window.__STRIKELINE_DIAGNOSTICS__.snapshot());
 const delay = (ms) => new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+async function auditAccessibility(page, label) {
+  await page.addScriptTag({ path: axeScript });
+  const results = await page.evaluate(async () => {
+    const report = await window.axe.run(document, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] },
+    });
+    return report.violations.map((v) => ({
+      id: v.id,
+      impact: v.impact,
+      elements: v.nodes.map((n) => n.target.join(' ')).slice(0, 8),
+    }));
+  });
+  assert.equal(results.length, 0, label + ' WCAG audit: ' + JSON.stringify(results));
+  console.log('PASS ' + label + ' axe-core WCAG 2.1 AA automated audit');
+}
+
 const waitPlaying = (page) => page.waitForFunction(
   () => window.__STRIKELINE_DIAGNOSTICS__?.snapshot().phase === 'playing',
   null, { timeout: 6000 },
@@ -64,6 +83,7 @@ try {
   assert.equal(await desktop.locator('#game-canvas').count(), 1);
   assert.equal((await snapshot(desktop)).phase, 'idle');
   await desktop.screenshot({ path: resolve(output, '01-desktop-home.png'), fullPage: true });
+  await auditAccessibility(desktop, 'desktop');
   console.log('PASS desktop page loads and initial screenshot captured');
 
   await desktop.locator('#primary-action').click();
@@ -153,6 +173,7 @@ try {
   const overflow = await mobile.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(overflow < 3, 'mobile page must not have horizontal scrolling: ' + overflow);
   await mobile.screenshot({ path: resolve(output, '04-mobile-home.png'), fullPage: true });
+  await auditAccessibility(mobile, 'mobile');
   await mobile.locator('#primary-action').click();
   await waitPlaying(mobile);
   await mobile.locator('#game-canvas').scrollIntoViewIfNeeded();
