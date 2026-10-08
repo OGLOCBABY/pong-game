@@ -52,7 +52,7 @@ export class RuinsGame {
   random() {let x=this.seed; x^=x<<13;x^=x>>>17;x^=x<<5;this.seed=x>>>0;return this.seed/4294967296;}
   reset() {
     this.seed=this.initialSeed;this.phase='ready';this.time=0;this.score=0;this.camera={x:0,y:0};
-    this.player={x:100,y:FLOOR-48,w:26,h:48,vx:0,vy:0,grounded:true,dir:1,health:this.mode==='faithful'?1:3,lives:3,invuln:0,curse:0,weapon:'pistol',ammo:Infinity,grenades:8,fireCooldown:0,throwCooldown:0,anim:0,checkpoint:100,checkpointY:FLOOR-48,shots:0,kills:0,crouch:false,interactLatch:false};
+    this.player={x:100,y:FLOOR-48,w:26,h:48,vx:0,vy:0,grounded:true,dir:1,health:this.mode==='faithful'?1:5,lives:this.mode==='faithful'?3:5,invuln:0,curse:0,weapon:'pistol',ammo:Infinity,grenades:8,fireCooldown:0,throwCooldown:0,anim:0,checkpoint:100,checkpointY:FLOOR-48,shots:0,kills:0,crouch:false,interactLatch:false};
     this.bullets=[];this.grenades=[];this.enemies=[];this.pickups=PICKUP_LAYOUT.map(([x,type],id)=>({id,x,y:PICKUP_HEIGHTS[x]??(towerSurfaceAt(x)-38),type,taken:false,phase:this.random()*6}));
     this.spawns=ENEMY_LAYOUT.map(([x,type],id)=>({x,type,id,activated:false}));
     this.platforms=PLATFORMS.map(p=>({...p,h:14}));
@@ -120,24 +120,33 @@ export class RuinsGame {
       return true;
     }
     if(kind==='curse'){
-      if(p.curse>0){p.health=0;p.lives--;this.emit('mummydeath');if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();return true;}
+      if(p.curse>0){
+        if(this.mode==='practice'){
+          p.curse=0;p.health=Math.max(0,p.health-1);p.invuln=3;this.emit('cursebroken');
+          if(p.health<=0){p.lives--;if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();}
+          return true;
+        }
+        p.health=0;p.lives--;this.emit('mummydeath');
+        if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();
+        return true;
+      }
       p.curse=9999;p.weapon='pistol';p.ammo=Infinity;p.invuln=.65;
       this.burst(p.x+12,p.y+20,'#a7e681',28,190);this.emit('curse');return true;
     }
-    p.health=Math.max(0,p.health-amount);p.invuln=1.6;
+    p.health=Math.max(0,p.health-amount);p.invuln=this.mode==='faithful'?1.6:2.8;
     this.burst(p.x+12,p.y+17,'#ff8c60',20,165);this.emit('hurt');
     if(p.health<=0){p.lives--;if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();}
     return true;
   }
-  respawn(){const p=this.player;p.x=p.checkpoint;p.y=p.checkpointY;p.vx=0;p.vy=0;p.grounded=true;p.health=this.mode==='faithful'?1:3;p.invuln=2.8;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:this.vehicle.serial,x:null,y:null};this.hazards=[];this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
+  respawn(){const p=this.player;p.x=p.checkpoint;p.y=p.checkpointY;p.vx=0;p.vy=0;p.grounded=true;p.health=this.mode==='faithful'?1:5;p.invuln=this.mode==='faithful'?2.8:3.2;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:this.vehicle.serial,x:null,y:null};this.hazards=[];this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
   collect(item){if(item.taken)return;item.taken=true;const p=this.player;let pts=100;
     switch(item.type){case 'heavy':p.weapon='heavy';p.ammo=175;pts=300;break;
       case 'spread':p.weapon='spread';p.ammo=65;pts=300;break;
-      case 'slug':p.weapon='slug';p.ammo=240;this.vehicle={mounted:true,hp:3,maxHp:3,gunsLeft:2,serial:this.vehicle.serial+1,x:p.x,y:p.y};p.health=this.mode==='faithful'?1:3;p.invuln=Math.max(p.invuln,.8);this.emit('mount');pts=1500;break;
+      case 'slug':p.weapon='slug';p.ammo=240;this.vehicle={mounted:true,hp:3,maxHp:3,gunsLeft:2,serial:this.vehicle.serial+1,x:p.x,y:p.y};p.health=this.mode==='faithful'?1:5;p.invuln=Math.max(p.invuln,.8);this.emit('mount');pts=1500;break;
       case 'coin':pts=500;break;
       case 'grenade':p.grenades=Math.min(20,p.grenades+5);pts=200;break;
-      case 'health':p.health=Math.min(3,p.health+2);pts=200;break;
-      case 'antidote':p.curse=0;p.health=Math.min(3,p.health+1);pts=250;break;
+      case 'health':p.health=Math.min(this.mode==='faithful'?1:5,p.health+2);pts=200;break;
+      case 'antidote':p.curse=0;p.health=Math.min(this.mode==='faithful'?1:5,p.health+1);pts=250;break;
       case 'pow':this.rescues++;pts=1000;break;
       case 'gem':pts=2000;break;}
     this.addScore(pts,item.x,item.y-12);this.burst(item.x,item.y,item.type==='antidote'?'#84ffc7':'#ffe8a4',20,170);this.emit('pickup',item.x,item.y,{item:item.type});}
