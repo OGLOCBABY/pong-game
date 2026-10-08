@@ -11,7 +11,7 @@ export const MAX_SCORE = 11;
 
 export const DIFFICULTIES = Object.freeze({
   rookie: Object.freeze({ label: 'ROOKIE', speed: 310, reaction: 0.29, error: 82, prediction: 0.56 }),
-  pro: Object.freeze({ label: 'PRO', speed: 425, reaction: 0.16, error: 39, prediction: 0.84 }),
+  pro: Object.freeze({ label: 'PRO', speed: 425, reaction: 0.16, error: 65, prediction: 0.84 }),
   legend: Object.freeze({ label: 'LEGEND', speed: 550, reaction: 0.085, error: 12, prediction: 0.97 }),
 });
 
@@ -160,7 +160,10 @@ export class PongGame {
         const flightTime = remainingX / this.ball.vx;
         const impactY = reflectY(this.ball.y + this.ball.vy * flightTime);
         const perceivedY = this.ball.y + (impactY - this.ball.y) * setting.prediction;
-        this.aiTarget = clamp(perceivedY + (this.random() * 2 - 1) * setting.error, 50, HEIGHT - 50);
+        // As rallies intensify, visual estimation becomes harder even for experts.
+        // Bounds stay below the gap between difficulty skill levels.
+        const pressure = Math.min(56, Math.max(0, this.rally - 16) * 0.8);
+        this.aiTarget = clamp(perceivedY + (this.random() * 2 - 1) * (setting.error + pressure), 50, HEIGHT - 50);
       } else {
         this.aiTarget = HEIGHT / 2 + Math.sin(this.elapsed * 0.82) * 22;
       }
