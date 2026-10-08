@@ -158,8 +158,23 @@ test('boss starts from below, telegraphs multiple attacks and can genuinely be d
   tick(g,250);assert.equal(g.boss.entry,1);
   const hp=g.boss.hp;g.damageBoss(25,g.boss.x,g.boss.y);
   assert.ok(g.boss.hp<hp);
-  g.damageBoss(100,g.boss.x,g.boss.y);
+  g.damageBoss(g.boss.hp,g.boss.x,g.boss.y);
   assert.equal(g.phase,'won');assert.equal(g.boss.dead,true);
+});
+test('boss remains alive through each of four distinct warning modes in a real simulation',()=>{
+  const g=create('practice');g.start();g.spawns=[];
+  g.player.x=BOSS_START+6;g.player.y=-618;g.player.grounded=true;g.player.invuln=1000;
+  tick(g,2);
+  assert.equal(g.boss.active,true);
+  const seen=new Set();
+  for(let i=0;i<120*22&&seen.size<4;i++){
+    const events=g.step(FIXED_DT);
+    for(const event of events)if(event.type==='warning')seen.add(event.mode);
+  }
+  for(const mode of ['electric','laser','lunge','missile'])
+    assert(seen.has(mode),'boss never telegraphed '+mode);
+  assert.equal(g.phase,'playing','timed exposure alone never triggers victory');
+  assert.equal(g.boss.hp,g.boss.maxHp);
 });
 test('checkpoints respawn without world clipping',()=>{
   const g=create();g.start();g.spawns=[];
