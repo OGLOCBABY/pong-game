@@ -95,6 +95,7 @@ try {
   await waitBoot(desktop);
   assert.equal(response.status(), 200);
   assert.match(await desktop.title(), /STRIKELINE/);
+  assert.match(await desktop.locator('.online-indicator').innerText(), /ARCADE READY/);
   assert.equal(await desktop.locator('#game-canvas').count(), 1);
   assert.equal((await snapshot(desktop)).phase, 'idle');
   await desktop.screenshot({ path: resolve(output, '01-desktop-home.png'), fullPage: true });
@@ -103,6 +104,7 @@ try {
 
   await desktop.keyboard.press('Enter');
   await waitPlaying(desktop);
+  assert.equal((await snapshot(desktop)).match, 1, 'Enter starts first session match');
   const beforeUp = (await snapshot(desktop)).paddles.left.y;
   await desktop.keyboard.down('w');
   await delay(260);
@@ -179,8 +181,11 @@ try {
   await desktop.screenshot({ path: resolve(output, '03-desktop-played.png'), fullPage: true });
   console.log('PASS scripted Chromium game session', JSON.stringify({ tracked, peakRally, elapsed: Math.round(postPlay.elapsed), score: postPlay.score }));
 
+  const priorMatch = (await snapshot(desktop)).match;
   await desktop.keyboard.press('r');
   const restarted = await snapshot(desktop);
+  assert.equal(restarted.match, priorMatch + 1, 'restart starts the next numbered match');
+  assert.equal((await desktop.locator('#match-number').innerText()).trim(), String(restarted.match).padStart(3, '0'));
   assert.equal(restarted.phase, 'ready', 'R must immediately restart into serve countdown');
   assert.deepEqual(restarted.score, { left: 0, right: 0 });
   await waitPlaying(desktop);
@@ -218,6 +223,7 @@ try {
   await auditAccessibility(desktop, 'game-over');
   await desktop.locator('#primary-action').click();
   const rematch = await snapshot(desktop);
+  assert.equal(rematch.match, finished.match + 1, 'rematch must advance the match number');
   assert.equal(rematch.phase, 'ready');
   assert.deepEqual(rematch.score, { left: 0, right: 0 });
   console.log('PASS complete in-browser match and rematch', JSON.stringify({ finalScore: finished.score, winner: finished.score.left > finished.score.right ? 'left' : 'right' }));
