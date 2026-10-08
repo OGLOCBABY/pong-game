@@ -52,13 +52,13 @@ export class RuinsGame {
   random() {let x=this.seed; x^=x<<13;x^=x>>>17;x^=x<<5;this.seed=x>>>0;return this.seed/4294967296;}
   reset() {
     this.seed=this.initialSeed;this.phase='ready';this.time=0;this.score=0;this.camera={x:0,y:0};
-    this.player={x:100,y:FLOOR-48,w:26,h:48,vx:0,vy:0,grounded:true,dir:1,health:this.mode==='faithful'?1:3,lives:3,invuln:0,curse:0,weapon:'pistol',ammo:Infinity,grenades:8,fireCooldown:0,throwCooldown:0,anim:0,checkpoint:100,checkpointY:FLOOR-48,shots:0,kills:0,crouch:false};
+    this.player={x:100,y:FLOOR-48,w:26,h:48,vx:0,vy:0,grounded:true,dir:1,health:this.mode==='faithful'?1:3,lives:3,invuln:0,curse:0,weapon:'pistol',ammo:Infinity,grenades:8,fireCooldown:0,throwCooldown:0,anim:0,checkpoint:100,checkpointY:FLOOR-48,shots:0,kills:0,crouch:false,interactLatch:false};
     this.bullets=[];this.grenades=[];this.enemies=[];this.pickups=PICKUP_LAYOUT.map(([x,type],id)=>({id,x,y:PICKUP_HEIGHTS[x]??(towerSurfaceAt(x)-38),type,taken:false,phase:this.random()*6}));
     this.spawns=ENEMY_LAYOUT.map(([x,type],id)=>({x,type,id,activated:false}));
     this.platforms=PLATFORMS.map(p=>({...p,h:14}));
     this.secrets=[{x:366,y:281,w:22,h:25,kind:'sphinx',triggered:false},{x:4220,y:-10,w:30,h:26,kind:'lamp',triggered:false}];
     this.particles=[];this.floating=[];this.events=[];this.input={left:false,right:false,up:false,down:false,jump:false,fire:false,grenade:false,interact:false};
-    this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:0};this.hazards=[];this.gateOpen=false;this.sceneId='desert';this.scenes=SCENES;this.maxHeight=0;
+    this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:0,x:null,y:null};this.hazards=[];this.gateOpen=false;this.sceneId='desert';this.scenes=SCENES;this.maxHeight=0;
     this.boss={x:6100,y:405,hp:58,maxHp:58,active:false,dead:false,t:0,attackT:1.5,phase:0,telegraph:0,entry:0,mode:'missile',counter:0,charges:0};
     this.act=0;this.bossGate=false;this.kills=0;this.shots=0;this.hits=0;this.rescues=0;this.combo=0;this.comboTimer=0;
     return this;
@@ -129,11 +129,11 @@ export class RuinsGame {
     if(p.health<=0){p.lives--;if(p.lives<=0){this.phase='lost';this.emit('lost');}else this.respawn();}
     return true;
   }
-  respawn(){const p=this.player;p.x=p.checkpoint;p.y=p.checkpointY;p.vx=0;p.vy=0;p.grounded=true;p.health=this.mode==='faithful'?1:3;p.invuln=2.8;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:this.vehicle.serial};this.hazards=[];this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
+  respawn(){const p=this.player;p.x=p.checkpoint;p.y=p.checkpointY;p.vx=0;p.vy=0;p.grounded=true;p.health=this.mode==='faithful'?1:3;p.invuln=2.8;p.curse=0;p.weapon='pistol';p.ammo=Infinity;p.grenades=Math.max(4,p.grenades);this.vehicle={mounted:false,hp:0,maxHp:3,gunsLeft:0,serial:this.vehicle.serial,x:null,y:null};this.hazards=[];this.bullets=this.bullets.filter(b=>b.owner==='player');this.enemies=this.enemies.filter(e=>e.x<p.x-300||e.x>p.x+380);this.emit('respawn');}
   collect(item){if(item.taken)return;item.taken=true;const p=this.player;let pts=100;
     switch(item.type){case 'heavy':p.weapon='heavy';p.ammo=175;pts=300;break;
       case 'spread':p.weapon='spread';p.ammo=65;pts=300;break;
-      case 'slug':p.weapon='slug';p.ammo=240;this.vehicle={mounted:true,hp:3,maxHp:3,gunsLeft:2,serial:this.vehicle.serial+1};p.health=this.mode==='faithful'?1:3;p.invuln=Math.max(p.invuln,.8);this.emit('mount');pts=1500;break;
+      case 'slug':p.weapon='slug';p.ammo=240;this.vehicle={mounted:true,hp:3,maxHp:3,gunsLeft:2,serial:this.vehicle.serial+1,x:p.x,y:p.y};p.health=this.mode==='faithful'?1:3;p.invuln=Math.max(p.invuln,.8);this.emit('mount');pts=1500;break;
       case 'coin':pts=500;break;
       case 'grenade':p.grenades=Math.min(20,p.grenades+5);pts=200;break;
       case 'health':p.health=Math.min(3,p.health+2);pts=200;break;
@@ -153,6 +153,17 @@ export class RuinsGame {
     const p=this.player,I=this.input;
     const slow=p.curse>0?.56:1,speed=(this.vehicle.mounted?228:238)*slow;
     const d=(I.right?1:0)-(I.left?1:0),prevX=p.x;
+    if(I.interact&&!p.interactLatch){
+      if(this.vehicle.mounted){
+        this.vehicle.mounted=false;this.vehicle.x=p.x;this.vehicle.y=p.y;
+        p.weapon='pistol';p.ammo=Infinity;this.emit('dismount',p.x,p.y);
+      }else if(this.vehicle.hp>0&&this.vehicle.x!==null&&Math.abs(p.x-this.vehicle.x)<70&&Math.abs(p.y-this.vehicle.y)<75){
+        this.vehicle.mounted=true;p.weapon='slug';p.ammo=Math.max(60,p.ammo===Infinity?100:p.ammo);
+        this.emit('mount',p.x,p.y);
+      }
+    }
+    p.interactLatch=I.interact;
+    if(this.vehicle.mounted){this.vehicle.x=p.x;this.vehicle.y=p.y;}
     p.crouch=I.down&&!I.up&&p.grounded&&!this.vehicle.mounted;
     p.vx=d*speed*(p.crouch?.52:1);if(d)p.dir=d;
     if(I.jump&&p.grounded){p.vy=this.vehicle.mounted?-610:p.curse>0?-345:-490;p.grounded=false;this.emit('jump');}
