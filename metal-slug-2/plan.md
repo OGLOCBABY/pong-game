@@ -1,6 +1,6 @@
 # Plan — Metal Slug 2 Mission 2 / Monument of Depression
 
-> 状态：**REVIEW_REQUIRED / 等待用户批注**。仅完成研究与可批注实施规划；**Implementation 未获授权，所有实施项均未执行**。
+> 状态：**R1 已完成逐行审阅；R2 方案闭合核对中**。当前版本记录预授权：只有当各阶段入口的执行路径与验证证据全部覆盖时，用户授权自动进入实施；**此文档仍不代表代码或发布已经通过测试**。
 >
 > 研究依据：[research.md](research.md)。
 > 原型来源：`feature/ruins-of-second-sun@9b0e55b6ca7abf634048de6d9e9637e3ac5a625a`。
@@ -17,7 +17,7 @@
 | C Implementation | 分步代码修改、真实浏览器游玩、迭代评分和提交 | **NOT_STARTED** | Gate B 批准；先复核分支最新 SHA |
 | D Acceptance | 原版对照、全路线可玩、无 P0、回归/发布证据、评分 | **NOT_STARTED** | 各项证据公开，未闭合项如实列出 |
 
-**硬性停止线**：Gate B 未批准之前，仅可修改本仓库 `metal-slug-2/research.md` / `metal-slug-2/plan.md` 及其评审批注。不得改游戏源码、测试、资产、CI 或 Pages。
+**阶段授权规则（2026-10-09 用户修订）**：Gate B 由逐项交叉审阅＋完整执行/验收方案闭合判定自动获批，无需二次口头确认；在 Gate B 正式盖章前不得改代码。发布本身只能在真实 CI/Pages/公网可玩门槛通过后认定完成。
 
 ## 2. 不可触碰的接口与外部副作用
 
@@ -129,7 +129,7 @@ while (accumulator >= FIXED_DT && substeps < MAX_SUBSTEPS) {
 ### C0 — 冻结范围 / 先取得用户批准
 
 - [ ] 审阅本计划 §8 批注，记录哪些约束被接受/否决。
-- [ ] 获取用户明确 “批准计划，进入 Implementation”。
+- [ ] 完成用户授权的 R1/R2 审阅与批注覆盖，记录自动批准判定，无需等待另一条口头指令。
 - [ ] 抓取功能分支最新 SHA 和文件 diff；若比研究基线新增提交，先审查冲突，不盲覆。
 - [ ] 记录当前 Pong CI 基线，并做第二关旧测试基线，**真实跑一次**；标记不通过项。
 - [ ] 记录原版 MS2 Mission 2 录像逐段时间戳/敌人/视频帧观测索引，避免混入 MSX 变更版。
@@ -272,4 +272,133 @@ while (accumulator >= FIXED_DT && substeps < MAX_SUBSTEPS) {
 向用户报告每项未闭合的 P0、实际评分和可浏览的 GitHub 证据；不要自行合并 main。
 ```
 
-**当前不执行以上提示词；首先等待 A1–A8 批注和明确实施授权。**
+**执行状态以本计划最新的 Gate B Closure Record 为准。** 若记录 `APPROVED_FOR_IMPLEMENTATION`，无需另行口头批准；但实际测试和发布门槛绝不可自动假定通过。
+
+
+## 10. R1 批注裁决记录（全部 A1–A8）
+
+| ID | 原建议 | 裁决 | 强制改动 / 收敛条件 | 批注来源 |
+| --- | --- | --- | --- | --- |
+| A1 | 高相似的原作关卡、原创视觉 | **APPROVE_WITH_CONDITIONS** | 原版 MS2 / MSX 必须分开，保留夜间开场、炸药桶、矿工、木乃伊、纵塔、Slugnoid、Aeshi Nero；只用自主创作或逐项授权资产 | [PR #2 Review R1](https://github.com/OGLOCBABY/pong-game/pull/2) |
+| A2 | 在原型上扩展 | **APPROVE** | 保持相容的 RuinsGame 与 Pong 接口；不可覆盖根首页；提交与回滚以可运行单元为界 | 同上 |
+| A3 | Faithful + Practice | **CHANGE → CLOSED_IN_PLAN** | 默认 Faithful 1-hit；Practice 允许有界 HP/关卡检查点；两套统计与 UI 标记，不能把 Practice 成功误报为原版通关 | 同上 |
+| A4 | 单人先行，双人延期 | **APPROVE_DEFER** | 单人完整可玩属 P0；不要无端引入联网多人；多人 camera 协议只留演进接口，首发明确“单人” | 同上 |
+| A5 | Pong 首页 + /metal-slug-2/ + Pages | **APPROVE_WITH_RELEASE_GATE** | 现有 Pages 工作流继续使用，必须加双游戏构建与不可绕过的质量门槛，发布后的实际 JS/HTML/游戏交互另行验证 | 同上 |
+| A6 | 合法素材 | **APPROVE** | 原创或可逐文件审计许可的素材；无 ROM/sprite rip/SNK 音乐；记录来源、版本、hash、是否修改、授权 | 同上 |
+| A7 | 证据型 10/10 | **CHANGE → CLOSED_IN_PLAN** | 黑盒浏览器操控、原版参照、画面/音效可审查，真人手感未完成时禁止 10/10 认证 | 同上 |
+| A8 | P0 优先，全路线 | **APPROVE** | 先完成真实纵塔/载具/Boss/全关通关/CI Pages；方向性错误 rollback；不做额外联网系统 | 同上 |
+
+**A1–A8 待执行风险均有明确实施清单与退出条件，**不再存在“必须先问用户才能确定的架构决策”。技术细节由具体测试结果迭代，但不得超出已批准合同。
+
+## 11. R2 可执行完整验收规格：需求 → 证据 → 失败修复
+
+各条在实施前属于 `PLAN_COVERED`（有执行路径），**不是 `TEST_PASSED`**。具体数值是本项目自定验收阈值，非声称原作真实帧数据。
+
+| ID | 前置输入 | 必须交付/可观察证据 | PASS 条件 | FAIL 时强制措施 |
+| --- | --- | --- | --- | --- |
+| G01 Baseline | main、feature SHA、原始代码 & test | 两分支文件清单、保护契约/现有测试结果 | 版本锁定且未越界 | 停止提交、复审 ref |
+| G02 Refs | SNK 官方 + 1998 访谈 + 原版夜景录像 | `reference-map.md`（video 04:48–10:31、片段置信度） | 主要六关卡事件与机制均有来源和例证；不强求像素拷贝 | 调整 scene 实施而非发明原版事实 |
+| G03 Route | S0–S5，真实二维世界 | `level.js` 全场景状态、进入出口、sceneId 和 progress gates | 从 start→boss 完整通过；“只右走”无法绕过 climb | 更换 scene graph，回滚错误 level commit |
+| G04 Camera | 至少 >=1080 px 可攀爬 y 区间 | 自动脚本跟踪 game.camera.y、game.player.worldY 和截图 | 攀爬时 camera.y 变化 >=400 world px，视野不会遗失主角或强迫盲跳 | 修复纵向 deadzone/平台图 |
+| G05 Player | Faithful(1-hit) + Practice 可选 | player 步态、普通死亡/复活、iframe、诅咒状态 | 输入一致、不会无敌不死、出生无软锁、分模式证据 | 修正 player FSM，重测 |
+| G06 Weapons | 固定 seed / 极端 dt / 复数 hitboxes | 扫掠弹道测试、枪械/炸弹/近战/上射/下射 | 无穿透/多计数/非法子弹存活，手感在帧率变化下稳定 | 重写碰撞 TOI |
+| G07 Mummy | 紫毒第一次/第二次、解毒 | 首中毒降速降武器、再中毒死亡、解药还原测试 + 截图 | 所有状态迁移唯一、正确；死亡清理状态 | 修正 infection FSM |
+| G08 Enemy/Secrets | 关卡 spawner/POW/矿工/秘密/危险桶 | 窗口加载/敌群上限、场景奖分、源可销毁 | 无无限刷怪卡死，可寻宝，通路真实可解锁 | 修改触发和 spawn quotas |
+| G09 Slugnoid | 真实 Slugnoid 实体 | enter/exit/jump/2 vulcans/down cannon/受损撤炮/炸毁 | 游戏内有可见载具、可用控制与无载具回退策略 | 重构 vehicle 层 |
+| G10 Boss | 高塔 S5 + Aeshi Nero | 入场/火箭/电球/激光/上冲/预警/阶段/击破追踪 | 实际操作可躲、可伤、Boss死才 win；至少一局从 S0 打到 S5 | 调整 Boss FSM、重新测平衡 |
+| G11 UI/Audio | 原创 assets、键/触/手柄/系统 reduce motion | 桌面/320/390/横屏、多指、合成音效、本地静音 | 无 console error/严重遮挡、真实多指不卡死，自动可访问审计 | 修 UI/controls |
+| G12 Node | seeded 120Hz + adversarial | `node --test` 完整日志、超时/数值 invariant / 交错状态 | 0 fail，跑批可复现，所有冒烟 fixture 通过 | 回滚到最后绿灯 |
+| G13 Browser | 本地 HTTP 真 ESM，Chromium/Firefox/WebKit | Playwright 原始页面输入、错误、截图、video、trace | 真正完整一局、Boss 失败/胜利、恢复和触控，浏览器无未处理错误 | 修 bug 并重跑 |
+| G14 Legacy | root Pong CI/QA | 根旧 21 test + 三浏览器 smoke 全过 | 保持 Pong 行为及已有 Pages 首页 | 不合并、回滚侵入 |
+| G15 Assets | 仓库原图/第三方逐文件许可证 | `ASSET_PROVENANCE.md`，无不明授权资源清单 | 每一发布图/音资源可证明来源 | 移除或原创重制 |
+| G16 Pages Gate | QA 全成功的 main sha | Pages workflow 复用，打包 Pong 和第二关，manual dispatch 需 QA 前置 | 构建只含白名单，路径正确，未绿质量结果不能部署 | 阻断 deployment |
+| G17 Live URL | GitHub Pages 成功部署后访问 | curl HTTP 状态、静态资源 URL、Playwright 公网开局+真实移动射击、截图和发布时间 | HTTP 200、JS/CSS 全加载、无错误，可打开即可游玩 | 重新构建/部署，无通过声明 |
+| G18 Scoring | 分项场景对照、证据和 UX | `qa.md` 每轮分数及缺陷/视频/CI URL | 所有 P0 绿灯、打分有依据；真人审查缺失标 UNVERIFIED | 继续迭代/降评级 |
+| G19 Repo Boundary | 最终 PR diff 与 base sha | 改动只此仓库，Pong 修改仅 additive CI、Pages、可选 README | main 旧逻辑不变，文件白名单满足 | 撤销违规文件/停止合并 |
+| G20 Operations | QA 通过、部署失败/重试/回滚 | 确定性 checksum、部署后重试方案和 rollback commit | 可快退至上一版且旧 Pong 不受损 | rollback 整段工程提交 |
+
+**相互依赖**：
+G01/G02 → G03/G04 → G05/G06/G07/G08 → G09/G10 → G11/G12/G13 → G14/G15/G16 → G17/G18/G19/G20。  
+实际执行允许小步穿插写测试，但所有 P0（G03/G04/G09/G10/G12/G13/G14/G16/G17/G19）必须关闭方可声称上线。  
+**不允许**因为已制定了测试而标记测试通过。
+
+## 12. 阻断条件的严格关闭定义
+
+### 12.1 固化原版观测与可证伪点
+
+建立 `metal-slug-2/reference-map.md`，每个 section 记录 `source/timecode/observable/baselineVersion/confidence/sceneId/testId`。第一条为公开视频长玩 `Mission2 @04:48`；Boss `@09:47`；Mission3 `@10:31`。**不得编造场景切换精确时刻**，暂缺时标记 `UNOBSERVED`。
+
+关键差异优先采用文献共识：夜景→藏 Sphinx 眼宝物→爆 Danger 桶开通→墓室木乃伊/解毒→真正爬塔→载具→Boss。开发者访谈证明纵轴存在。面对相冲突二级来源时记录 `CONFLICT` 与截图参考，而不是无根据二选一。用户请求“尽可能忠实”，关卡结构先于 HUD 风格。
+
+### 12.2 场景和相机架构
+
+不重做第三方引擎；扩展现有确定性 `RuinsGame`。采用二维 world space（水平段逻辑 + 负 Y 高塔），render 统一 (worldX-camera.x, worldY-camera.y)，场景切换只通过出口条件，入口/出口或 gate 与碰撞物可查。
+
+- S0–S2 可以主要水平行进，但入口 Danger 桶爆破是真正触发 S1 的门槛；不能按距离直接传送。
+- S3：至少 4 个以上玩家必须真实跳上的横向错落平台，并有分层相机运动 ≥400 px；不跳不能上顶，不允许凭右行绕过。
+- S4：真实载具与塔顶平台共享碰撞世界；相机不因乘坐视角发生跳动。
+- S5：Boss 在玩家下方，必须存在可明确判断的下射攻击和危险纵向空隙。
+- 游戏不应以计时自动通关；可以 Practice 下调整容错，不能绕过路径和 Boss。
+- 新建测试 fixtures 序列可复现相机、到达点及交互；只读 diagnostics 可公布 scene/position/boss，不能暴露默认用户可调用的“赢游戏”方法。
+
+### 12.3 Slugnoid 与 Boss 不可降低标准
+
+载具模型单独维护 durability、gunsLeft、canMount、mounted、jumpEnergy（若需要），原版确切 HP 若无依据不标“1:1”；受击损失炮台，装甲耗尽爆炸；死亡/重生状态一致。测试两枪分别计弹事件，Down+Fire 发射下方主炮；玩家离开载具后可下射 Boss，胜利依 Boss HP 或可观察的可靠击杀路径。
+
+Aeshi Nero Boss：用状态表固定**入场、飞弹可击毁、电球/载具条件、短冲锋、电光主炮长前摇、爆炸、胜利**；记录攻击时序/有效区域/预警动画、撞击伤害与冷却。敌弹难度不因脚本有作弊路径；至少两种策略通关（Slugnoid/步兵），失败案例也能发生。逃避空间必须存在并在真实浏览器操作中可利用。
+
+### 12.4 真浏览器测试定义
+
+- 禁止通过 `window.__ruins.game.player.x=...`、`game.damageBoss(...)`、跳 clock、内联拼接 JS 或 mock `won` 作为通关证明。
+- Playwright 用页面原样 HTML/CSS/ES module，通过真实 keyboard/pointer/gamepad 分别覆盖；可以通过只读 `window.__ruins.snapshot()` 观测进度。
+- Playthrough bot 可以计算 next action，但只能通过浏览器合法动作，且走完整地图，不允许绕过空气墙/碰撞物。
+- 失败测试：不跳只右、站定、被感染后第二次命中、载具被毁、丢失焦点、暂停、重试、低帧率（模拟）、restart 清零。
+- 符合 §7 要求的 screenshot evidence 存本仓库 `metal-slug-2/test-results/`（未追踪生成物），作为 Actions artifact 保存 14 天，链接写进 QA；严格报告帧截图是否人眼实际检查。
+- 播放在原生网站而非 CSS JS 拼接实验台；Python `browser-visual.py` 不作为主门槛。
+
+### 12.5 GitHub Pages 工作流复用并消除手动绕门
+
+现有 `.github/workflows/pages.yml` 保留工作流 ID / 触发；在原有 `pages` 检查及静态 copy 流程中 **追加**第二关目录。重要：现有手动 `workflow_dispatch` 可无 QA 发布，因此改为：
+
+- 发布工作流根据触发类型识别审核提交 SHA；`workflow_run` 必须 `conclusion == success` 且 `head_branch == main`，且发布确切审核 SHA。
+- 对 `workflow_dispatch`，**同步完整执行** `npm test && npm run smoke`（根）和 `cd metal-slug-2 && npm test && npm run smoke`（子项目）；任何失败则禁止部署。为减少双倍 CI 可改为调用可重用 QA 工作流，但不能省略门槛。
+- 保护部署输入：构建只用当前 repo 静态文件，不允额外下载源 ROM、使用第三方部署 tokens 或跳过授权脚本。
+- 原 `pages.yml` 保留配置检查、upload-pages-artifact 和 deploy-pages 语义，网站根保持 Pong；静态站拷贝 `metal-slug-2/index.html`、JS/CSS/JSON 与合法 assets，路径与 JS import 一致。
+- 验收分离：Actions `conclusion=success` 仅是“构建/传输完成”；**公网 URL 必须再次验证 HTTP/JS/runtime/bot**，若机器人可用，还做开局键鼠实测。
+- 发布后用户一键打开目标 URL 预计为 `https://oglocbaby.github.io/pong-game/metal-slug-2/`；但未真实请求成功前只称“待验证目标 URL”。
+
+### 12.6 量化性能、观测与自评
+
+- 数值：确定性同 seed 同输入一致；坐标不得 NaN；弹体和可见实体上限；循环不得发生无限碰撞；连续 1000s 失焦/恢复不时间跳跃。
+- 冒烟：至少 Chromium desktop 1365×768，Chromium mobile 390×844 与 844×390，320px 小屏；Firefox/WebKit 完整加载+控制/至少一小段战斗；单人完整实测路线重点 Chromium。
+- 性能：主力桌面跑 1 分钟实际游戏帧统计，目标 p95 <20ms；若 CI 虚拟浏览器性能不足，必须报告测量平台、原始时长与性能不确定，不以虚拟环境冒充真实硬件。
+- 体验：地图画面、玩家姿态、载具、Boss 攻击需逐场景截图比对。代码行数/单测数量不能独立用于 10 分评价。
+- 评分事件：每个领域 0–10 + 已知失败 + 证据 URL；修复后重新评分，最高认证依据为真实验收和明确外部评价。自动化操作属于机器人测试，不是人类游戏评审。
+
+## 13. 安全 / 运行 / 回滚闭合说明
+
+- GitHub Actions artifacts **不会**自动当作应用运行资产；二者分离，部署只能使用 repo 追踪的自创或合法资源。
+- 不提交任何 token、秘密、身份数据、外部连接凭证；不启用 Work/Codex 或跨项目云端浏览器。只用本仓库 GitHub 连接器/Actions 和必要的运行时验证。
+- 读取原版参考网络资料仅做研究，对那些网站不执行写入。公开参考图像不得拷入产品。
+- 每次实现时复核分支 HEAD，写冲突必须 stop/rebase 审查；不要 force 更新。
+- 正确失败路径：Gate 未过 → 保留原 Pong 首页可用 → 不触发 deploy；仅成功测试后提交、构建、上线。如果合并后旧 Pong 变坏，回滚发布对应的**整个变更提交**到上个 QA 绿灯 SHA，不在错误架构上增量修修补补。
+
+## 14. Gate B closure record — R2 逐项评审总结
+
+| 条件 | 文档层面 | 工程实际层面 | 负责实施/checklist |
+| --- | --- | --- | --- |
+| 用户批注 A1–A8 | **COVERED，全部裁决** | 未实施 | §10、C0 |
+| 受保护接口 | **COVERED** | 待验证 | §2、G01/G14 |
+| 原作参考一致性 | **COVERED，有来源分级及未测标记** | 原版逐帧未做 | research §6、G02 |
+| 全路线和真纵轴 | **COVERED，可测阈值** | 原型不满足 | G03/G04、C1 |
+| 主角、碰撞、敌人、木乃伊 | **COVERED** | 原型存在缺陷 | G05–G08、C2/C3 |
+| 真 Slugnoid + Aeshi Nero | **COVERED** | 原型不满足 | G09/G10、C4 |
+| 画面、声音、移动、可访问 | **COVERED** | 尚需测试 | G11、C5 |
+| 自动化真实操作/旧 Pong 回归 | **COVERED，反作弊定义** | 新测试尚未执行 | G12–G14、C6 |
+| 版权资源证据 | **COVERED** | 按实施追踪 | G15、C0/C5 |
+| Pages 现有流程门控和公网验证 | **COVERED，包括 manual 防绕过** | 未发布新游戏 | G16/G17、C6 |
+| QA 自评、全程 Git 范围与回滚 | **COVERED** | 实际评分未完成 | G18–G20、C7 |
+
+**阶段判定（Planning）**：`PLANNING_REQUIREMENTS_COVERED` = 有针对所有验收条件的执行方法、实现位置、风险/回滚、可证伪验收和来源；不等于 `IMPLEMENTED` 或 `LIVE_PLAYABLE`。用户 2026-10-09 明确给出**满足计划完整条件后自动批准实施**的授权，无需再索取确认。
+
+**Gate B = APPROVED_FOR_IMPLEMENTATION（以此审核意见为准）**；后续只按 C0–C7 执行，凡真实实现或测试失败如实状态 `FAIL / NOT_RUN`。发布门槛永远以实际通过为准，无法自行通过批准来代替。
