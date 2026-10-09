@@ -66,6 +66,85 @@ test('jump is physically ballistic, platform landing does not tunnel',()=>{
   g.player.x=platform.x+25;g.player.y=platform.y-140;g.player.vy=50;g.player.grounded=false;
   tick(g,80);assert.equal(g.player.y+g.player.h,platform.y);
 });
+test('mummy walks off an upper stair and lands on the next two lower stairs',()=>{
+  const g=create('practice');g.start();g.spawns=[];g.enemies=[];
+  g.player.x=3300;g.player.invuln=1000;
+  g.spawn('mummy',3896);
+  const enemy=g.enemies[0],landings=[];
+  assert.equal(enemy.y+enemy.h,195);
+  for(let i=0;i<1100;i++){
+    const wasGrounded=enemy.grounded;
+    g.updateEnemy(enemy,FIXED_DT);
+    if(!wasGrounded&&enemy.grounded)landings.push(enemy.y+enemy.h);
+  }
+  assert.deepEqual(landings.slice(0,2),[280,365],
+    'descending mummy must land on each lower tier, not float at the upper height');
+  assert.equal(enemy.vy,0);
+});
+test('rifle and mummy fall from stairs at different world heights without hovering',()=>{
+  for(const {kind,x,playerX,upper,lower} of [
+    {kind:'rifle',x:4870,playerX:4420,upper:-230,lower:-145},
+    {kind:'mummy',x:4255,playerX:3820,upper:25,lower:110},
+    {kind:'rifle',x:5200,playerX:4880,upper:-400,lower:-315}
+  ]){
+    const g=create('practice');g.start();g.spawns=[];g.enemies=[];
+    g.player.x=playerX;g.player.invuln=1000;
+    g.spawn(kind,x);
+    const enemy=g.enemies[0];
+    assert.equal(enemy.y+enemy.h,upper);
+    let fell=false,landed=false;
+    for(let i=0;i<900;i++){
+      const wasGrounded=enemy.grounded;
+      g.updateEnemy(enemy,FIXED_DT);
+      if(wasGrounded&&!enemy.grounded)fell=true;
+      if(fell&&!wasGrounded&&enemy.grounded){
+        assert.equal(enemy.y+enemy.h,lower,kind+' must snap to next lower platform');
+        assert.equal(enemy.vy,0);
+        landed=true;break;
+      }
+    }
+    assert(fell&&landed,kind+' must both leave its upper support and land below');
+  }
+});
+test('descending platform collision is swept and does not tunnel at 30Hz',()=>{
+  const g=create('practice');g.start();g.spawns=[];g.enemies=[];
+  g.spawn('rifle',4870);
+  const enemy=g.enemies[0];
+  enemy.x=4760;enemy.y=-150-enemy.h;enemy.vy=780;enemy.grounded=false;
+  g.updateGroundEnemy(enemy,1/30);
+  assert.equal(enemy.y+enemy.h,-145);
+  assert.equal(enemy.vy,0);
+  assert.equal(enemy.grounded,true);
+});
+test('fixed enemies and flying bats do not inherit walking enemy gravity',()=>{
+  const g=create('practice');g.start();g.spawns=[];g.enemies=[];g.player.x=3300;
+  for(const [type,x] of [['barrel',1570],['turret',5100],['spawner',4230],['bat',3850]])
+    g.spawn(type,x);
+  const initial=g.enemies.map(e=>({x:e.x,y:e.y}));
+  for(let i=0;i<200;i++)for(const e of [...g.enemies])g.updateEnemy(e,FIXED_DT);
+  for(let i=0;i<3;i++){
+    assert.equal(g.enemies[i].x,initial[i].x,g.enemies[i].type+' must remain fixed');
+    assert.equal(g.enemies[i].y,initial[i].y,g.enemies[i].type+' must remain anchored');
+  }
+  assert.notEqual(g.enemies[3].y,initial[3].y,'bat retains deliberate airborne flight');
+  const floor=create('practice');floor.start();floor.spawns=[];floor.enemies=[];
+  floor.player.x=70;floor.spawn('rifle',180);
+  for(let i=0;i<450;i++)floor.updateEnemy(floor.enemies[0],FIXED_DT);
+  assert.equal(floor.enemies[0].y+floor.enemies[0].h,FLOOR,'floor ground troops do not sink');
+});
+test('the real game.step invokes stair gravity on active enemies',()=>{
+  const g=create('practice');g.start();g.spawns=[];g.enemies=[];
+  g.player.x=3300;g.player.invuln=1000;
+  g.spawn('mummy',3896);
+  const enemy=g.enemies[0],visited=[];
+  for(let i=0;i<1100&&g.phase==='playing';i++){
+    const wasGrounded=enemy.grounded;
+    g.step(FIXED_DT);
+    if(!wasGrounded&&enemy.grounded)visited.push(enemy.y+enemy.h);
+  }
+  assert.deepEqual(visited.slice(0,2),[280,365]);
+  assert.equal(g.phase,'playing');
+});
 test('one-way tower camera never scrolls down to hide upper traversal',()=>{
   const g=create('practice');g.start();g.spawns=[];
   g.player.x=4520;g.player.y=-210;g.player.grounded=false;
