@@ -56,6 +56,43 @@ try{
   assert.equal(response.status(),200);
   await boot(page);
   assert.equal((await snap(page)).phase,'ready');
+  // Regression: dying enemies briefly remain in the physics list with hit > 0.
+  // Their bodies AND ground shadows must leave no pixels after death.
+  const deathRendering = await page.evaluate(async () => {
+    const [{ArtDirector}, {RuinsGame}] = await Promise.all([
+      import(new URL('./art.js', location.href)),
+      import(new URL('./engine.js', location.href)),
+    ]);
+    const painter = new ArtDirector(document.createElement('canvas'));
+    const game = new RuinsGame();
+    const pixels = () => painter.c.getImageData(460, 330, 125, 140).data;
+    const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+    game.enemies = [];
+    painter.render(game, 0);
+    const empty = pixels();
+    const results = [];
+    for (const type of ['rifle', 'mummy', 'bat', 'turret', 'spawner', 'barrel']) {
+      const enemy = {
+        type, x: 500, y: 410, w: type === 'spawner' || type === 'barrel' ? 50 : 29,
+        h: type === 'spawner' ? 53 : type === 'bat' ? 20 : 43,
+        t: 0, dir: 1, dead: true, hit: .13, hp: 0, maxHp: 5,
+      };
+      game.enemies = [enemy];
+      painter.render(game, 0);
+      const noDeadSpriteOrShadow = same(empty, pixels());
+      enemy.dead = false;
+      enemy.hp = 1;
+      painter.render(game, 0);
+      results.push({type, noDeadSpriteOrShadow, livingEnemyVisible: !same(empty, pixels())});
+    }
+    return results;
+  });
+  assert(deathRendering.every(x => x.noDeadSpriteOrShadow),
+    'Dead enemy shadow/sprite remains: ' + JSON.stringify(deathRendering));
+  assert(deathRendering.every(x => x.livingEnemyVisible),
+    'Living enemy rendering regressed: ' + JSON.stringify(deathRendering));
+  console.log('PASS all 6 enemy types disappear without a residual shadow on death');
+
   assert.equal((await snap(page)).mode,'faithful');
   await page.screenshot({path:resolve(out,'01-intro.png'),fullPage:true});
   await audit(page,'desktop');
