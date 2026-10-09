@@ -298,7 +298,8 @@ export class RuinsGame {
     for(const q of this.particles){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=480*dt;q.life-=dt;}
     this.particles=this.particles.filter(q=>q.life>0);
     for(const q of this.floating){q.y-=28*dt;q.life-=dt;}this.floating=this.floating.filter(q=>q.life>0);
-    this.enemies=this.enemies.filter(e=>!e.dead||e.hit>0);
+    // Death effects are separate particles; never retain dead sprites or their shadows.
+    this.enemies=this.enemies.filter(e=>!e.dead);
     this.comboTimer-=dt;if(this.comboTimer<=0)this.combo=0;
     const cameraX=clamp(this.player.x-340,0,WORLD_END-WIDTH),cameraY=this.boss.active?-850:Math.min(0,this.player.y-210);
     this.camera.x+=((cameraX)-this.camera.x)*Math.min(1,dt*7);
