@@ -203,6 +203,25 @@ export class RuinsGame {
     this.maxHeight=Math.min(this.maxHeight,p.y);
     if(!this.boss.active&&p.x>=BOSS_START&&p.y+p.h<=-555){this.boss.active=true;this.bossGate=true;this.emit('boss',p.x,p.y);}
   }
+  // Moving ground enemies leave ledges and land on lower platforms; bats/fixtures do not.
+  updateGroundEnemy(e,dt){
+    if(e.type!=='rifle'&&e.type!=='mummy')return;
+    const footX=e.x+e.w/2,prevBottom=e.y+e.h;
+    const support=e.grounded&&e.vy===0&&
+      (Math.abs(prevBottom-FLOOR)<.01||this.platforms.some(p=>
+        footX>=p.x&&footX<=p.x+p.w&&Math.abs(prevBottom-p.y)<.01));
+    if(support)return;
+    e.grounded=false;
+    e.vy=clamp(e.vy+G*dt,0,780);
+    const nextBottom=prevBottom+e.vy*dt;
+    let landing=nextBottom>=FLOOR?FLOOR:null;
+    for(const p of this.platforms){
+      if(footX<p.x||footX>p.x+p.w||prevBottom>p.y||nextBottom<p.y)continue;
+      if(landing===null||p.y<landing)landing=p.y;
+    }
+    if(landing!==null){e.y=landing-e.h;e.vy=0;e.grounded=true;}
+    else e.y=nextBottom-e.h;
+  }
   updateEnemy(e,dt){const p=this.player;e.t+=dt;e.hit=Math.max(0,e.hit-dt);e.shoot-=dt;
     const dx=p.x-e.x;const near=Math.abs(dx)<660;e.dir=dx>=0?1:-1;
     if(e.type==='barrel')return;
@@ -215,6 +234,7 @@ export class RuinsGame {
       if(Math.abs(dx)<60&&e.shoot<=0){e.shoot=1.5;this.enemyShot(e.x,e.y+10,e.dir*110,135,'bullet');}}
     if(e.type==='turret'&&near&&e.shoot<=0){e.shoot=1.9+this.random()*.5;this.enemyShot(e.x+12,e.y+8,e.dir*330,-90,'bullet');this.enemyShot(e.x+12,e.y+8,e.dir*350,-10,'bullet');}
     if(e.type==='spawner'&&near){e.spawn-=dt;if(e.spawn<=0){e.spawn=3.6;const local=this.enemies.filter(m=>!m.dead&&m.type==='mummy'&&Math.abs(m.x-e.x)<220).length;if(local<3)this.spawn('mummy',e.x-35*e.dir);this.emit('spawn',e.x,e.y);}}
+    this.updateGroundEnemy(e,dt);
     if(e.type!=='bat'&&e.type!=='barrel'&&Math.abs(dx)<25&&Math.abs((p.y+p.h/2)-(e.y+e.h/2))<37&&e.t>.3)this.damagePlayer(1,e.type==='mummy'?'curse':'bullet');
     if(e.type==='bat'&&overlap(e,p))this.damagePlayer(1);
   }
