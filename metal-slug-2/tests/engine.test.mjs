@@ -106,6 +106,22 @@ test('crouch, up and air down shots have the correct weapon vector',()=>{
   g.player.fireCooldown=0;tick(g,1);
   assert.ok(g.bullets.some(b=>b.owner==='player'&&b.vy>0));
 });
+test('defeated enemies and their shadows disappear immediately while kill effects remain',()=>{
+  const g=create('practice');g.start();g.spawns=[];
+  for(const [i,type] of ['rifle','mummy','bat','turret','spawner','barrel'].entries())
+    g.spawn(type,500+i*90);
+  const killed=[...g.enemies];
+  for(const enemy of killed)g.damageEnemy(enemy,enemy.hp,enemy.x,enemy.y);
+  assert.equal(g.kills,killed.length);
+  assert(killed.every(enemy=>enemy.dead&&enemy.hit>0),'death flash must not keep sprites alive');
+  assert(g.particles.length>0,'death bursts must still render');
+  tick(g,1);
+  assert.equal(g.enemies.length,0,'dead sprites must leave render list in the same update');
+  assert(g.particles.length>0,'particles and explosions remain after removing dead sprites');
+  tick(g,30);
+  assert.equal(g.enemies.length,0,'dead enemy silhouettes must not return');
+});
+
 test('grenades are finite and their explosion hurts enemies',()=>{
   const g=create('practice');g.start();g.spawn('mummy',140);const mummy=g.enemies[0];
   g.player.grenades=1;g.setInput({grenade:true});tick(g,2);
