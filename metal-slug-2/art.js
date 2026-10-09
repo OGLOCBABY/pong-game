@@ -264,7 +264,7 @@ export class ArtDirector {
         }else ellipse(c,sx,secret.y,4,3,'#e3d89b');
       }
     }
-    for(const e of g.enemies)enemySprite(c,e,cx,t);
+    for(const e of g.enemies)if(!e.dead)enemySprite(c,e,cx,t);
     bigBoss(c,g.boss,cx,t);renderHazards(c,g,cx);
     if(g.vehicle?.mounted){
       drawSlugnoid(c,g.player,g.player.x-cx,g.player.y,t,g.vehicle);
