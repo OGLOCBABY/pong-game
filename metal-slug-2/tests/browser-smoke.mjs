@@ -1,7 +1,7 @@
 /** HTTP/ES-module Chromium playthrough, real keyboard/touch. No engine mutations or cheat hooks. */
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFile,mkdir} from 'node:fs/promises';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,dirname,extname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
@@ -93,6 +93,46 @@ try{
     'Living enemy rendering regressed: ' + JSON.stringify(deathRendering));
   console.log('PASS all 6 enemy types disappear without a residual shadow on death');
 
+  // Check the actual ES-module physics AND rendered frames at a descending tower stair.
+  const stairEvidence = await page.evaluate(async () => {
+    const [{RuinsGame,FIXED_DT}, {ArtDirector}] = await Promise.all([
+      import(new URL('./engine.js', location.href)),
+      import(new URL('./art.js', location.href)),
+    ]);
+    const game = new RuinsGame({mode:'practice',seed:77});
+    game.start();game.spawns=[];game.enemies=[];
+    game.player.x=3300;game.player.invuln=1000;
+    game.spawn('mummy',3896);
+    const mummy=game.enemies[0],painter=new ArtDirector(document.createElement('canvas'));
+    const frames={};
+    let airborne=false,landed=false;
+    for(let i=0;i<750;i++){
+      const wasGrounded=mummy.grounded;
+      game.step(FIXED_DT);
+      const feet=mummy.y+mummy.h;
+      if(!airborne&&!mummy.grounded&&feet>225){
+        airborne=true;game.camera.x=3500;game.camera.y=0;
+        painter.render(game,0);frames.midfall=painter.canvas.toDataURL('image/png').split(',')[1];
+      }
+      if(airborne&&!wasGrounded&&mummy.grounded){
+        landed=feet===280;
+        game.camera.x=3500;game.camera.y=0;
+        painter.render(game,0);frames.landed=painter.canvas.toDataURL('image/png').split(',')[1];
+        break;
+      }
+    }
+    return {airborne,landed,feet:mummy.y+mummy.h,frames};
+  });
+  assert(stairEvidence.airborne && stairEvidence.landed && stairEvidence.feet===280,
+    'Enemy must visibly fall from top 195 to lower 280 tier: '+JSON.stringify({
+      airborne:stairEvidence.airborne,landed:stairEvidence.landed,feet:stairEvidence.feet
+    }));
+  assert(stairEvidence.frames.midfall && stairEvidence.frames.landed &&
+    stairEvidence.frames.midfall!==stairEvidence.frames.landed,
+    'Stair descent must alter actual rendered enemy pixels');
+  await writeFile(resolve(out,'stair-enemy-midfall.png'),Buffer.from(stairEvidence.frames.midfall,'base64'));
+  await writeFile(resolve(out,'stair-enemy-landed.png'),Buffer.from(stairEvidence.frames.landed,'base64'));
+  console.log('PASS real browser stair enemy fall and landing with before/after Canvas screenshots');
   assert.equal((await snap(page)).mode,'faithful');
   await page.screenshot({path:resolve(out,'01-intro.png'),fullPage:true});
   await audit(page,'desktop');
